@@ -1,0 +1,12 @@
+name: vlsbench
+class: guardrail_eval.benchmarks.vlsbench.VLSBench
+hf_id: Foreverlasting1202/VLSBench
+split: train
+
+columns:
+  id: id
+  text: instruction
+  image: image
+  category: category
+
+expected_label: unsafe

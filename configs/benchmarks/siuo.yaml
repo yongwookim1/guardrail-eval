@@ -1,0 +1,14 @@
+name: siuo
+class: guardrail_eval.benchmarks.siuo.SIUO
+hf_id: MMInstruction/SIUO
+split: test
+
+# Column mapping — adjust if the dataset schema differs in your snapshot.
+columns:
+  id: id               # falls back to row index if missing
+  text: question
+  image: image
+  category: category   # optional; used for per-category recall
+
+# Every SIUO sample is expected to be flagged unsafe.
+expected_label: unsafe

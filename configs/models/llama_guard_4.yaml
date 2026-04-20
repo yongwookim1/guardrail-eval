@@ -1,0 +1,15 @@
+name: llama_guard_4
+class: guardrail_eval.models.llama_guard.LlamaGuard4
+hf_id: meta-llama/Llama-Guard-4-12B
+
+backend: vllm
+backend_kwargs:
+  dtype: bfloat16
+  tensor_parallel_size: 2            # 12B early-fusion; 2x A100-80GB is comfortable
+  limit_mm_per_prompt: { image: 5 }
+  max_model_len: 8192
+  gpu_memory_utilization: 0.85
+
+sampling:
+  temperature: 0.0
+  max_tokens: 20                     # output is terse: "unsafe\nS9"

@@ -1,0 +1,20 @@
+name: guardrail-eval
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch=2.4.*
+  - pytorch-cuda=12.1
+  - pip:
+      - vllm>=0.11.0
+      - transformers>=4.57.1
+      - accelerate>=1.0.0
+      - datasets>=3.0.0
+      - huggingface_hub>=0.26.0
+      - pillow>=10.0.0
+      - pyyaml>=6.0
+      - tqdm>=4.66.0
+      - pytest>=8.0.0

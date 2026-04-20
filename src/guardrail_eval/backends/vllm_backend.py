@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+import time
+from typing import Any
+
+from ..io import pil_to_data_uri
+from ..types import Sample
+
+
+class VLLMBackend:
+    """Thin wrapper around vLLM's offline engine, built for multimodal chat.
+
+    Models handle their own message construction and output parsing. This class
+    only owns the engine lifecycle and a single `chat(...)` entry point.
+    """
+
+    def __init__(self, hf_id: str, backend_kwargs: dict[str, Any] | None = None) -> None:
+        from vllm import LLM  # imported lazily so unit tests don't need vLLM
+
+        backend_kwargs = backend_kwargs or {}
+        self.hf_id = hf_id
+        self.llm = LLM(model=hf_id, **backend_kwargs)
+
+    def chat(
+        self,
+        conversations: list[list[dict[str, Any]]],
+        *,
+        sampling: dict[str, Any],
+        chat_template_kwargs: dict[str, Any] | None = None,
+    ) -> list[tuple[str, float]]:
+        """Run a batch of chat conversations and return (text, latency_ms) per item."""
+        from vllm import SamplingParams
+
+        sp = SamplingParams(
+            temperature=sampling.get("temperature", 0.0),
+            max_tokens=sampling.get("max_tokens", 128),
+            top_p=sampling.get("top_p", 1.0),
+        )
+
+        kwargs: dict[str, Any] = {"sampling_params": sp, "use_tqdm": False}
+        if chat_template_kwargs:
+            kwargs["chat_template_kwargs"] = chat_template_kwargs
+
+        t0 = time.perf_counter()
+        outputs = self.llm.chat(conversations, **kwargs)
+        total_ms = (time.perf_counter() - t0) * 1000.0
+        per_item = total_ms / max(len(outputs), 1)
+        return [(o.outputs[0].text, per_item) for o in outputs]
+
+    @staticmethod
+    def build_user_message(text: str | None, image) -> dict[str, Any]:
+        """Build an OpenAI-style user message with optional image."""
+        content: list[dict[str, Any]] = []
+        if image is not None:
+            content.append({"type": "image_url", "image_url": {"url": pil_to_data_uri(image)}})
+        if text:
+            content.append({"type": "text", "text": text})
+        return {"role": "user", "content": content}
+
+    def close(self) -> None:
+        # vLLM's LLM releases GPU memory when the object is garbage-collected.
+        self.llm = None  # type: ignore[assignment]
+
+
+def build_user_messages(samples: list[Sample]) -> list[list[dict[str, Any]]]:
+    """Convenience: one-user-turn conversations for a batch of samples."""
+    return [[VLLMBackend.build_user_message(s.text, s.image)] for s in samples]

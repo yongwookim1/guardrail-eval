@@ -1,0 +1,19 @@
+name: nemotron_cs
+class: guardrail_eval.models.nemotron.NemotronContentSafety
+hf_id: nvidia/Nemotron-3-Content-Safety
+
+backend: vllm
+backend_kwargs:
+  dtype: bfloat16
+  tensor_parallel_size: 1
+  limit_mm_per_prompt: { image: 1 }
+  max_model_len: 8192
+  gpu_memory_utilization: 0.85
+
+sampling:
+  temperature: 0.0
+  max_tokens: 128
+
+# Nemotron-specific: ask the model to emit category labels.
+# Options: "/categories" | "/no_categories"
+request_categories: "/categories"
