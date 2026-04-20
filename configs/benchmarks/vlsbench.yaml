@@ -1,12 +1,12 @@
 name: vlsbench
 class: guardrail_eval.benchmarks.vlsbench.VLSBench
-hf_id: Foreverlasting1202/VLSBench
-split: train
 
-columns:
-  id: id
-  text: instruction
-  image: image
-  category: category
+# Metadata in `data.json`, images bundled in `imgs.tar` at the repo root.
+# We download only those two files (not the 2.5 GB parquet shards) and
+# extract the tar once into the cache dir.
+hf_id: Foreshhh/vlsbench
+
+metadata_file: data.json
+images_archive: imgs.tar
 
 expected_label: unsafe

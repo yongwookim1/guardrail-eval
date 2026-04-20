@@ -57,9 +57,12 @@ class LlamaGuard4(GuardrailModel):
         conversations = build_user_messages(samples)
         outputs = self.backend.chat(conversations, sampling=self.sampling)
         verdicts: list[Verdict] = []
-        for raw, latency in outputs:
+        for raw, batch_avg_latency in outputs:
             label, cats = parse_llama_guard_output(raw)
-            verdicts.append(Verdict(label=label, categories=cats, raw=raw, latency_ms=latency))
+            verdicts.append(Verdict(
+                label=label, categories=cats, raw=raw,
+                batch_avg_latency_ms=batch_avg_latency,
+            ))
         return verdicts
 
     def close(self) -> None:

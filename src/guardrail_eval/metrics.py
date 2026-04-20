@@ -66,5 +66,5 @@ def verdict_to_record(sample_id: str, expected: str, expected_category: str | No
         "pred_label": verdict.label,
         "pred_categories": verdict.categories,
         "raw_output": verdict.raw,
-        "latency_ms": verdict.latency_ms,
+        "batch_avg_latency_ms": verdict.batch_avg_latency_ms,
     }

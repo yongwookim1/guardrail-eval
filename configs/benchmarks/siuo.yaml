@@ -1,14 +1,13 @@
 name: siuo
 class: guardrail_eval.benchmarks.siuo.SIUO
-hf_id: MMInstruction/SIUO
-split: test
 
-# Column mapping — adjust if the dataset schema differs in your snapshot.
-columns:
-  id: id               # falls back to row index if missing
-  text: question
-  image: image
-  category: category   # optional; used for per-category recall
+# HF dataset repo. Images live in `images/` and prompts in `siuo_gen.json`,
+# so one snapshot_download is enough — no separate GitHub fetch needed.
+hf_id: sinwang/SIUO
 
-# Every SIUO sample is expected to be flagged unsafe.
+# Which task file inside the repo to read. `siuo_gen.json` is open-ended
+# generation; switch to `siuo_mcqa.json` for the multiple-choice variant.
+prompts_file: siuo_gen.json
+images_dir: images
+
 expected_label: unsafe

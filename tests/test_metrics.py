@@ -9,7 +9,7 @@ def _rec(sid, expected, pred, cat=None):
         "pred_label": pred,
         "pred_categories": [],
         "raw_output": "",
-        "latency_ms": 0.0,
+        "batch_avg_latency_ms": 0.0,
     }
 
 

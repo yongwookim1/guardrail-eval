@@ -11,10 +11,16 @@ Currently wired for:
 
 on benchmarks:
 
-| Benchmark | HF id | All samples |
-| --- | --- | --- |
-| `siuo` | `MMInstruction/SIUO` | expected `unsafe` |
-| `vlsbench` | `Foreverlasting1202/VLSBench` | expected `unsafe` |
+| Benchmark | HF id | Size | All samples |
+| --- | --- | --- | --- |
+| `siuo` | `sinwang/SIUO` | 168 | expected `unsafe` |
+| `vlsbench` | `Foreshhh/vlsbench` | 2,241 | expected `unsafe` |
+
+Neither dataset is a standard parquet-with-Image-feature. Both are fetched via
+`huggingface_hub` in dataset-specific loaders:
+
+- **SIUO** — `snapshot_download("sinwang/SIUO", allow_patterns=["siuo_gen.json", "images/*"])`, then read `siuo_gen.json` and open images from `images/`.
+- **VLSBench** — `hf_hub_download` for `data.json` + `imgs.tar`, then extract the tar once into the HF cache dir (idempotent).
 
 ## Setup
 
@@ -55,9 +61,13 @@ That's the whole contract — the evaluator, CLI, and metrics pick it up automat
 
 ## Adding a new benchmark
 
-Mirror of the model path: subclass `Benchmark`, `@register_benchmark`, add a YAML,
-import in `benchmarks/__init__.py`. For simple HF-dataset benchmarks you usually
-only need a YAML + a 10-line loader delegating to `_hf_common.iter_hf_samples`.
+Mirror of the model path: subclass `Benchmark` (or `HFFileBenchmark` from
+`_hf_common.py` if the repo stores JSON metadata + image files), decorate with
+`@register_benchmark`, add a YAML, import in `benchmarks/__init__.py`. An
+`HFFileBenchmark` subclass is typically two methods: `_prepare()` (download
++ return `(records, image_root)`) and `_record_to_sample()` (map one record
+to a `Sample`). Everything else — tqdm totals, streaming, error handling —
+is handled by the base class.
 
 ## Layout
 

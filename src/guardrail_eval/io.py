@@ -15,12 +15,19 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def pil_to_data_uri(image: Image, fmt: str = "PNG") -> str:
-    """Encode a PIL image as a data: URI for OpenAI-style multimodal messages."""
+def pil_to_data_uri(image: Image, fmt: str = "JPEG", quality: int = 90) -> str:
+    """Encode a PIL image as a data: URI for OpenAI-style multimodal messages.
+
+    Default is JPEG (2–4× smaller than PNG for typical photos). SigLIP / Llama-4
+    vision encoders resize to ~896 px anyway, so JPEG artifacts are negligible.
+    """
     buf = io.BytesIO()
-    image.convert("RGB").save(buf, format=fmt)
+    save_kwargs: dict[str, int | bool] = {}
+    if fmt.upper() == "JPEG":
+        save_kwargs = {"quality": quality, "optimize": True}
+    image.convert("RGB").save(buf, format=fmt, **save_kwargs)  # type: ignore[arg-type]
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-    mime = "image/png" if fmt.upper() == "PNG" else f"image/{fmt.lower()}"
+    mime = f"image/{'jpeg' if fmt.upper() == 'JPEG' else fmt.lower()}"
     return f"data:{mime};base64,{b64}"
 
 

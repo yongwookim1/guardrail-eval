@@ -55,9 +55,12 @@ class NemotronContentSafety(GuardrailModel):
             chat_template_kwargs={"request_categories": self.request_categories},
         )
         verdicts: list[Verdict] = []
-        for raw, latency in outputs:
+        for raw, batch_avg_latency in outputs:
             label, cats = parse_nemotron_output(raw)
-            verdicts.append(Verdict(label=label, categories=cats, raw=raw, latency_ms=latency))
+            verdicts.append(Verdict(
+                label=label, categories=cats, raw=raw,
+                batch_avg_latency_ms=batch_avg_latency,
+            ))
         return verdicts
 
     def close(self) -> None:

@@ -28,7 +28,12 @@ class VLLMBackend:
         sampling: dict[str, Any],
         chat_template_kwargs: dict[str, Any] | None = None,
     ) -> list[tuple[str, float]]:
-        """Run a batch of chat conversations and return (text, latency_ms) per item."""
+        """Run a batch of chat conversations.
+
+        Returns (text, batch_avg_latency_ms) per item. vLLM processes batch
+        items concurrently, so there is no cheap true per-item latency; we
+        report batch wall-time divided by batch size as a throughput proxy.
+        """
         from vllm import SamplingParams
 
         sp = SamplingParams(
@@ -44,8 +49,8 @@ class VLLMBackend:
         t0 = time.perf_counter()
         outputs = self.llm.chat(conversations, **kwargs)
         total_ms = (time.perf_counter() - t0) * 1000.0
-        per_item = total_ms / max(len(outputs), 1)
-        return [(o.outputs[0].text, per_item) for o in outputs]
+        batch_avg_ms = total_ms / max(len(outputs), 1)
+        return [(o.outputs[0].text, batch_avg_ms) for o in outputs]
 
     @staticmethod
     def build_user_message(text: str | None, image) -> dict[str, Any]:

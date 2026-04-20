@@ -23,4 +23,7 @@ class Verdict:
     label: Label
     categories: list[str]
     raw: str
-    latency_ms: float = 0.0
+    # Batch-average latency: the batch's wall-time divided by batch size. Not a
+    # true per-sample latency (vLLM processes batch items concurrently) — use
+    # it as a throughput proxy, not a p99 measurement.
+    batch_avg_latency_ms: float = 0.0
