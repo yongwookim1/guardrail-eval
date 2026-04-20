@@ -20,7 +20,7 @@ from typing import Any
 
 from ..backends.vllm_backend import VLLMBackend, build_user_messages
 from ..types import Sample, Verdict
-from .base import GuardrailModel
+from .base import GuardrailModel, resolve_model_source
 from .registry import register_model
 
 
@@ -47,7 +47,7 @@ class LlamaGuard4(GuardrailModel):
         super().__init__(config)
         self.sampling: dict[str, Any] = config.get("sampling", {"max_tokens": 20, "temperature": 0.0})
         self.backend = VLLMBackend(
-            hf_id=config["hf_id"],
+            hf_id=resolve_model_source(config),
             backend_kwargs=config.get("backend_kwargs", {}),
         )
 

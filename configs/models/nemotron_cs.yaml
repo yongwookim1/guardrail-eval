@@ -1,6 +1,6 @@
 name: nemotron_cs
 class: guardrail_eval.models.nemotron.NemotronContentSafety
-hf_id: nvidia/Nemotron-3-Content-Safety
+model_path: models/Nemotron-3-Content-Safety
 
 backend: vllm
 backend_kwargs:

@@ -6,8 +6,8 @@ Currently wired for:
 
 | Model | HF id | Modality |
 | --- | --- | --- |
-| `nemotron_cs` | `nvidia/Nemotron-3-Content-Safety` | text + image |
-| `llama_guard_4` | `meta-llama/Llama-Guard-4-12B` | text + image |
+| `nemotron_cs` | `models/Nemotron-3-Content-Safety` | text + image |
+| `llama_guard_4` | `models/Llama-Guard-4-12B` | text + image |
 
 on benchmarks:
 
@@ -28,8 +28,17 @@ Neither dataset is a standard parquet-with-Image-feature. Both are fetched via
 conda env create -f environment.yml
 conda activate guardrail-eval
 pip install -e .
-huggingface-cli login   # for gated datasets / models
 ```
+
+Manually place the model directories here before running:
+
+```text
+models/Nemotron-3-Content-Safety
+models/Llama-Guard-4-12B
+```
+
+The bundled model YAMLs use `model_path:` and resolve relative paths from the
+repo root, so no Hugging Face model download is needed at runtime.
 
 ## Run
 
@@ -54,7 +63,8 @@ Per-run output lands at `results/<model>/<benchmark>/`:
 
 1. Subclass `GuardrailModel` in `src/guardrail_eval/models/<name>.py`. Implement
    `classify_batch(samples) -> list[Verdict]`. Decorate with `@register_model("<name>")`.
-2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and its HF id.
+2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and either
+   a local `model_path:` or a remote `hf_id:`.
 3. Import the module in `src/guardrail_eval/models/__init__.py`.
 
 That's the whole contract — the evaluator, CLI, and metrics pick it up automatically.

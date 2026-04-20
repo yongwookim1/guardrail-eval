@@ -1,6 +1,6 @@
 name: llama_guard_4
 class: guardrail_eval.models.llama_guard.LlamaGuard4
-hf_id: meta-llama/Llama-Guard-4-12B
+model_path: models/Llama-Guard-4-12B
 
 backend: vllm
 backend_kwargs:
