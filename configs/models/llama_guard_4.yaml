@@ -9,6 +9,7 @@ backend_kwargs:
   limit_mm_per_prompt: { image: 5 }
   max_model_len: 8192
   gpu_memory_utilization: 0.85
+  enforce_eager: true                # disable compile/CUDAGraph startup path
 
 sampling:
   temperature: 0.0
