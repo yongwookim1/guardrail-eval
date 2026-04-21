@@ -1,0 +1,8 @@
+name: holisafe
+class: guardrail_eval.benchmarks.holisafe.HoliSafe
+
+# Local dataset directory. Place the manually downloaded benchmark here.
+dataset_path: datasets/holisafe-bench
+
+metadata_file: holisafe_bench.json
+images_dir: images

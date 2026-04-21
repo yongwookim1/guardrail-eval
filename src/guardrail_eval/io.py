@@ -4,10 +4,25 @@ import base64
 import functools
 import json
 import mimetypes
+import os
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
+
+
+def _cache_size_from_env(env_var: str, default: int) -> int:
+    raw = os.getenv(env_var)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(value, 0)
+
+
+IMAGE_CACHE_MAXSIZE = _cache_size_from_env("GUARDRAIL_EVAL_IMAGE_CACHE_MAXSIZE", 1024)
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
@@ -15,7 +30,7 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-@functools.lru_cache(maxsize=8192)
+@functools.lru_cache(maxsize=IMAGE_CACHE_MAXSIZE)
 def file_to_data_uri(path: str) -> str:
     """Encode an existing image file as a data: URI.
 
@@ -73,6 +88,27 @@ def load_json(path: str | Path) -> Any:
         return json.load(f)
 
 
-def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
+def iter_jsonl(path: str | Path) -> Iterable[dict[str, Any]]:
     with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
+
+
+def iter_records(path: str | Path) -> Iterable[dict[str, Any]]:
+    path = Path(path)
+    if path.suffix == ".jsonl":
+        yield from iter_jsonl(path)
+        return
+
+    payload = load_json(path)
+    if not isinstance(payload, list):
+        raise ValueError(f"Expected a JSON list in legacy results file: {path}")
+    for record in payload:
+        if not isinstance(record, dict):
+            raise ValueError(f"Legacy results file contains a non-object record: {path}")
+        yield record
+
+
+def load_jsonl(path: str | Path) -> list[dict[str, Any]]:
+    return list(iter_jsonl(path))

@@ -15,12 +15,15 @@ on benchmarks:
 | --- | --- | --- | --- |
 | `siuo` | `datasets/SIUO` | 168 | expected `unsafe` |
 | `vlsbench` | `datasets/vlsbench` | 2,241 | expected `unsafe` |
+| `holisafe` | `datasets/holisafe-bench` | 4,031 | mixed `safe` / `unsafe` from `type` |
 
-Neither dataset is a standard parquet-with-Image-feature. Both are loaded from
-local dataset directories in dataset-specific loaders:
+None of these datasets is loaded through the standard parquet-with-Image path
+in this repo. They are loaded from local dataset directories in
+dataset-specific loaders:
 
 - **SIUO** — read `datasets/SIUO/siuo_gen.json` and open images from `datasets/SIUO/images/`.
 - **VLSBench** — read `datasets/vlsbench/data.json` + `datasets/vlsbench/imgs.tar`, then extract the tar once into `datasets/vlsbench/imgs/`.
+- **HoliSafe** — read `datasets/holisafe-bench/holisafe_bench.json` and open images from `datasets/holisafe-bench/images/`; expected labels are derived from the final character of HoliSafe's `type` code (`S` => `safe`, `U` => `unsafe`).
 
 ## Setup
 
@@ -48,6 +51,9 @@ datasets/SIUO/images/...
 
 datasets/vlsbench/data.json
 datasets/vlsbench/imgs.tar
+
+datasets/holisafe-bench/holisafe_bench.json
+datasets/holisafe-bench/images/...
 ```
 
 ## Run
@@ -59,14 +65,23 @@ python scripts/run_eval.py --model nemotron_cs --benchmark siuo
 # Quick smoke test
 python scripts/run_eval.py --model nemotron_cs --benchmark siuo --limit 20
 
+# Larger runs: flush less often to reduce results I/O overhead
+python scripts/run_eval.py --model nemotron_cs --benchmark holisafe --batch-size 32 --flush-every-batches 32
+
 # Full grid (all configs under configs/models × configs/benchmarks)
 python scripts/run_eval.py --model all --benchmark all
 ```
 
+Notes:
+
+- The `transformers` backend now batches chat-template preprocessing and generation across each evaluator batch.
+- `backend_kwargs.use_cache` defaults to `true` for the `transformers` backend and can be disabled in model YAML if needed.
+- Image encoding caches default to 1024 entries. Override with `GUARDRAIL_EVAL_IMAGE_CACHE_MAXSIZE=<n>` when tuning RAM usage.
+
 Per-run output lands at `results/<model>/<benchmark>/`:
 
 - `results.jsonl` — one JSON record per line with prediction, raw model output, latency
-- `results_summary.json` — `unsafe_recall`, `error_rate`, per-category breakdown
+- `results_summary.json` — accuracy, safe/unsafe precision-recall-F1, balanced accuracy, confusion counts, legacy unsafe-only fields, per-category breakdown, and HoliSafe per-`type` breakdown
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
 ## Adding a new model
@@ -98,9 +113,9 @@ guardrail-eval/
 │   ├── types.py                           # Sample, Verdict
 │   ├── backends/vllm_backend.py           # vLLM engine wrapper (multimodal chat)
 │   ├── models/{base,nemotron,llama_guard,registry}.py
-│   ├── benchmarks/{base,siuo,vlsbench,_hf_common,registry}.py
+│   ├── benchmarks/{base,holisafe,siuo,vlsbench,_hf_common,registry}.py
 │   ├── evaluator.py                       # model × benchmark runner
-│   ├── metrics.py                         # unsafe-recall, category breakdown
+│   ├── metrics.py                         # accuracy / recall / confusion summaries
 │   ├── io.py                              # JSONL / image-to-data-uri helpers
 │   └── cli.py                             # `guardrail-eval ...`
 └── scripts/run_eval.py

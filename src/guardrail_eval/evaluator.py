@@ -7,7 +7,7 @@ from typing import Any, Iterator
 from tqdm import tqdm
 
 from .benchmarks.base import Benchmark
-from .io import JsonlWriter, load_json, load_jsonl, write_json
+from .io import JsonlWriter, iter_records, load_json, write_json
 from .metrics import MetricsAccumulator, verdict_to_record
 from .models.base import GuardrailModel
 from .types import Sample
@@ -36,6 +36,7 @@ def run(
     batch_size: int = 8,
     resume: bool = False,
     skip_existing: bool = False,
+    flush_every_batches: int = 16,
     model_config: dict[str, Any] | None = None,
     benchmark_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -52,16 +53,24 @@ def run(
     existing_ids: set[str] = set()
     if resume:
         source_path = raw_path if raw_path.exists() else legacy_raw_path
-        existing_records = load_jsonl(source_path) if source_path.exists() else []
-        acc.update_many(existing_records)
-        existing_ids = {str(r["sample_id"]) for r in existing_records}
-        if existing_records and not raw_path.exists():
-            with JsonlWriter(raw_path, mode="w") as writer:
-                writer.write_many(existing_records, flush=True)
+        if source_path.exists():
+            rewrite_legacy_results = source_path == legacy_raw_path and not raw_path.exists()
+            if rewrite_legacy_results:
+                with JsonlWriter(raw_path, mode="w") as writer:
+                    for record in iter_records(source_path):
+                        acc.update(record)
+                        existing_ids.add(str(record["sample_id"]))
+                        writer.write(record)
+                    writer.flush()
+            else:
+                for record in iter_records(source_path):
+                    acc.update(record)
+                    existing_ids.add(str(record["sample_id"]))
 
     total = benchmark.num_samples(limit=limit)
     remaining_total = max(total - len(existing_ids), 0) if total is not None else None
     batch_size = max(batch_size, 1)
+    flush_every_batches = max(flush_every_batches, 1)
 
     sample_iter = benchmark.iter_samples(limit=limit)
     if existing_ids:
@@ -73,6 +82,7 @@ def run(
         unit="sample",
     ) as pbar:
         sample_iter = iter(sample_iter)
+        pending_flush_batches = 0
         while True:
             batch = _take_batch(sample_iter, batch_size)
             if not batch:
@@ -89,12 +99,19 @@ def run(
                     expected=sample.expected_label,
                     expected_category=sample.category,
                     verdict=verdict,
+                    expected_type=sample.meta.get("type"),
                 )
                 acc.update(rec)
                 batch_records.append(rec)
 
-            writer.write_many(batch_records, flush=True)
+            writer.write_many(batch_records, flush=False)
+            pending_flush_batches += 1
+            if pending_flush_batches >= flush_every_batches:
+                writer.flush()
+                pending_flush_batches = 0
             pbar.update(len(batch))
+        if pending_flush_batches:
+            writer.flush()
 
     summary = {
         "model": model.name,

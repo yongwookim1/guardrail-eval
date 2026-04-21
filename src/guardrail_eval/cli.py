@@ -29,6 +29,14 @@ def _names(kind: str) -> list[str]:
     return sorted(p.stem for p in d.glob("*.yaml")) if d.exists() else []
 
 
+def _fmt_metric(value: object) -> str:
+    if value is None:
+        return "na"
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    return str(value)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="guardrail-eval", description="Evaluate guardrail models on multimodal safety benchmarks.")
     parser.add_argument("--model", required=True, help='Model config name or path, or "all".')
@@ -38,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--resume", action="store_true", help="Resume from existing results.jsonl if present.")
     parser.add_argument("--skip-existing", action="store_true", help="Skip runs that already have a results_summary.json.")
+    parser.add_argument("--flush-every-batches", type=int, default=16, help="Flush results.jsonl every N batches instead of every batch.")
     args = parser.parse_args(argv)
 
     model_names = _names("models") if args.model == "all" else [args.model]
@@ -60,17 +69,24 @@ def main(argv: list[str] | None = None) -> int:
                     batch_size=args.batch_size,
                     resume=args.resume,
                     skip_existing=args.skip_existing,
+                    flush_every_batches=args.flush_every_batches,
                     model_config=model_cfg,
                     benchmark_config=bench_cfg,
                 )
-                print(
-                    f"[{model.name}/{benchmark.name}] "
-                    f"n={summary['n']} "
-                    f"tp={summary['true_positives']} "
-                    f"fn={summary['false_negatives']} "
-                    f"errors={summary['errors']} "
-                    f"unsafe_recall={summary['unsafe_recall']}"
-                )
+                parts = [
+                    f"[{model.name}/{benchmark.name}]",
+                    f"n={summary['n']}",
+                    f"correct={summary.get('correct', 'na')}",
+                    f"acc={_fmt_metric(summary.get('accuracy'))}",
+                    f"errors={summary['errors']}",
+                ]
+                if summary.get("safe_total"):
+                    parts.append(f"safe_recall={_fmt_metric(summary.get('safe_recall'))}")
+                if summary.get("unsafe_total"):
+                    parts.append(f"unsafe_recall={_fmt_metric(summary.get('unsafe_recall'))}")
+                if summary.get("safe_total") and summary.get("unsafe_total"):
+                    parts.append(f"balanced_acc={_fmt_metric(summary.get('balanced_accuracy'))}")
+                print(" ".join(parts))
         finally:
             model.close()
 

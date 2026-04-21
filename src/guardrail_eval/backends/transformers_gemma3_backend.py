@@ -7,11 +7,12 @@ from pathlib import Path
 
 from PIL import Image
 
+from ..io import IMAGE_CACHE_MAXSIZE
 from ..types import Sample
 from .transformers_common import TransformersMultimodalBackend
 
 
-@functools.lru_cache(maxsize=8192)
+@functools.lru_cache(maxsize=IMAGE_CACHE_MAXSIZE)
 def _encode_image_base64(path: str) -> str:
     image = Image.open(path).convert("RGB")
     buf = io.BytesIO()
