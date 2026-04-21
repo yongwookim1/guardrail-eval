@@ -68,10 +68,30 @@ class LlamaGuard4(GuardrailModel):
             return []
         if self.backend_name == "vllm":
             outputs = vllm_chat_samples(self.backend, samples, sampling=self.sampling)
-        else:
-            outputs = self.backend.chat_samples(samples, sampling=self.sampling)
+            verdicts: list[Verdict] = []
+            for raw, batch_avg_latency in outputs:
+                label, cats, error_reason = parse_llama_guard_output(raw)
+                verdicts.append(Verdict(
+                    label=label, categories=cats, raw=raw,
+                    error_reason=error_reason,
+                    batch_avg_latency_ms=batch_avg_latency,
+                ))
+            return verdicts
+
         verdicts: list[Verdict] = []
-        for raw, batch_avg_latency in outputs:
+        for sample in samples:
+            try:
+                outputs = self.backend.chat_samples([sample], sampling=self.sampling)
+            except Exception as exc:
+                verdicts.append(Verdict(
+                    label="error",
+                    categories=[],
+                    raw="",
+                    error_reason=f"backend_error:{type(exc).__name__}",
+                    batch_avg_latency_ms=0.0,
+                ))
+                continue
+            raw, batch_avg_latency = outputs[0]
             label, cats, error_reason = parse_llama_guard_output(raw)
             verdicts.append(Verdict(
                 label=label, categories=cats, raw=raw,
