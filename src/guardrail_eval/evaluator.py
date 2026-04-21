@@ -12,6 +12,10 @@ from .metrics import MetricsAccumulator, verdict_to_record
 from .models.base import GuardrailModel
 from .types import Sample
 
+RAW_RESULTS_FILENAME = "results.jsonl"
+LEGACY_RAW_RESULTS_FILENAME = "results.json"
+SUMMARY_FILENAME = "results_summary.json"
+
 
 def _take_batch(it: Iterator[Sample], size: int) -> list[Sample]:
     batch: list[Sample] = []
@@ -37,18 +41,23 @@ def run(
 ) -> dict[str, Any]:
     out = Path(output_dir) / model.name / benchmark.name
     out.mkdir(parents=True, exist_ok=True)
-    summary_path = out / "results_summary.json"
-    raw_path = out / "results.json"
+    summary_path = out / SUMMARY_FILENAME
+    raw_path = out / RAW_RESULTS_FILENAME
+    legacy_raw_path = out / LEGACY_RAW_RESULTS_FILENAME
 
     if skip_existing and summary_path.exists():
         return load_json(summary_path)
 
     acc = MetricsAccumulator()
     existing_ids: set[str] = set()
-    if resume and raw_path.exists():
-        existing_records = load_jsonl(raw_path)
+    if resume:
+        source_path = raw_path if raw_path.exists() else legacy_raw_path
+        existing_records = load_jsonl(source_path) if source_path.exists() else []
         acc.update_many(existing_records)
         existing_ids = {str(r["sample_id"]) for r in existing_records}
+        if existing_records and not raw_path.exists():
+            with JsonlWriter(raw_path, mode="w") as writer:
+                writer.write_many(existing_records, flush=True)
 
     total = benchmark.num_samples(limit=limit)
     remaining_total = max(total - len(existing_ids), 0) if total is not None else None
@@ -91,8 +100,6 @@ def run(
         "model": model.name,
         "benchmark": benchmark.name,
         "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-        "resumed": resume,
-        "resumed_records": len(existing_ids),
         **acc.summary(),
     }
     write_json(summary_path, summary)

@@ -65,7 +65,7 @@ python scripts/run_eval.py --model all --benchmark all
 
 Per-run output lands at `results/<model>/<benchmark>/`:
 
-- `results.json` — one JSON record per line with prediction, raw model output, latency
+- `results.jsonl` — one JSON record per line with prediction, raw model output, latency
 - `results_summary.json` — `unsafe_recall`, `error_rate`, per-category breakdown
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
