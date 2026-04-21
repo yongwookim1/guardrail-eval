@@ -9,6 +9,7 @@ def _rec(sid, expected, pred, cat=None):
         "pred_label": pred,
         "pred_categories": [],
         "raw_output": "",
+        "error_reason": None,
         "batch_avg_latency_ms": 0.0,
     }
 
@@ -46,3 +47,10 @@ def test_category_breakdown():
 
 def test_empty():
     assert summarize([]) == {"n": 0}
+
+
+def test_error_reason_breakdown():
+    records = [_rec("a", "unsafe", "error")]
+    records[0]["error_reason"] = "parse_failed"
+    s = summarize(records)
+    assert s["error_reasons"] == {"parse_failed": 1}

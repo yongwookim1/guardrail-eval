@@ -11,16 +11,16 @@ Currently wired for:
 
 on benchmarks:
 
-| Benchmark | HF id | Size | All samples |
+| Benchmark | Local path | Size | All samples |
 | --- | --- | --- | --- |
-| `siuo` | `sinwang/SIUO` | 168 | expected `unsafe` |
-| `vlsbench` | `Foreshhh/vlsbench` | 2,241 | expected `unsafe` |
+| `siuo` | `datasets/SIUO` | 168 | expected `unsafe` |
+| `vlsbench` | `datasets/vlsbench` | 2,241 | expected `unsafe` |
 
-Neither dataset is a standard parquet-with-Image-feature. Both are fetched via
-`huggingface_hub` in dataset-specific loaders:
+Neither dataset is a standard parquet-with-Image-feature. Both are loaded from
+local dataset directories in dataset-specific loaders:
 
-- **SIUO** — `snapshot_download("sinwang/SIUO", allow_patterns=["siuo_gen.json", "images/*"])`, then read `siuo_gen.json` and open images from `images/`.
-- **VLSBench** — `hf_hub_download` for `data.json` + `imgs.tar`, then extract the tar once into the HF cache dir (idempotent).
+- **SIUO** — read `datasets/SIUO/siuo_gen.json` and open images from `datasets/SIUO/images/`.
+- **VLSBench** — read `datasets/vlsbench/data.json` + `datasets/vlsbench/imgs.tar`, then extract the tar once into `datasets/vlsbench/imgs/`.
 
 ## Setup
 
@@ -40,6 +40,16 @@ models/Llama-Guard-4-12B
 The bundled model YAMLs use `model_path:` and resolve relative paths from the
 repo root, so no Hugging Face model download is needed at runtime.
 
+Manually place the benchmark assets here before running:
+
+```text
+datasets/SIUO/siuo_gen.json
+datasets/SIUO/images/...
+
+datasets/vlsbench/data.json
+datasets/vlsbench/imgs.tar
+```
+
 ## Run
 
 ```bash
@@ -55,8 +65,8 @@ python scripts/run_eval.py --model all --benchmark all
 
 Per-run output lands at `results/<model>/<benchmark>/`:
 
-- `raw.jsonl` — one record per sample with prediction, raw model output, latency
-- `summary.json` — `unsafe_recall`, `error_rate`, per-category breakdown
+- `results.json` — one record per sample with prediction, raw model output, latency
+- `results_summary.json` — `unsafe_recall`, `error_rate`, per-category breakdown
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
 ## Adding a new model
@@ -74,8 +84,8 @@ That's the whole contract — the evaluator, CLI, and metrics pick it up automat
 Mirror of the model path: subclass `Benchmark` (or `HFFileBenchmark` from
 `_hf_common.py` if the repo stores JSON metadata + image files), decorate with
 `@register_benchmark`, add a YAML, import in `benchmarks/__init__.py`. An
-`HFFileBenchmark` subclass is typically two methods: `_prepare()` (download
-+ return `(records, image_root)`) and `_record_to_sample()` (map one record
+`HFFileBenchmark` subclass is typically two methods: `_prepare()` (resolve local
+files + return `(records, image_root)`) and `_record_to_sample()` (map one record
 to a `Sample`). Everything else — tqdm totals, streaming, error handling —
 is handled by the base class.
 

@@ -1,14 +1,9 @@
-"""Shared helpers for benchmarks that live as raw files in a HF dataset repo.
+"""Shared helpers for benchmarks that live as raw local files.
 
-Both SIUO and VLSBench ship as `{metadata.json, image_dir_or_tar}` rather than
-as uniform parquet with an `Image()` feature. That means the generic
-`datasets.load_dataset` path is awkward — we'd still need out-of-band image
-resolution. Instead, each loader:
-
-  1. Fetches only the files it needs with `huggingface_hub.hf_hub_download`
-     (or `snapshot_download` with `allow_patterns`).
-  2. Reads the JSON metadata.
-  3. Resolves images from the local cache directory on iteration.
+These benchmarks store JSON metadata plus image files or image archives rather
+than a uniform parquet `Image()` feature. Loaders therefore resolve a local
+dataset directory, read JSON metadata, and hand image paths through to the
+evaluation pipeline without decoding them up front.
 """
 from __future__ import annotations
 
@@ -17,8 +12,6 @@ import tarfile
 from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Iterator
-
-from PIL import Image as PILImage
 
 from ..types import Sample
 from .base import Benchmark
@@ -36,11 +29,11 @@ class HFFileBenchmark(Benchmark):
 
     @abstractmethod
     def _prepare(self) -> tuple[list[dict[str, Any]], Path]:
-        """Download required files and return (records, image_root)."""
+        """Resolve required files and return (records, image_root)."""
 
     @abstractmethod
     def _record_to_sample(self, idx: int, record: dict[str, Any], image_root: Path) -> Sample:
-        """Map a raw record + image root to a Sample (loads the PIL image)."""
+        """Map a raw record + image root to a Sample."""
 
     # ---- Benchmark protocol ------------------------------------------------
 
@@ -68,15 +61,6 @@ class HFFileBenchmark(Benchmark):
 def load_json(path: str | Path) -> Any:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
-
-def open_image(path: Path) -> PILImage.Image:
-    """Open and fully load a PIL image (so the file handle can be released)."""
-    img = PILImage.open(path)
-    img.load()
-    return img
-
-
 def extract_tar_once(tar_path: Path, into: Path, sentinel_subdir: str) -> Path:
     """Extract `tar_path` into `into` if `into/sentinel_subdir` doesn't exist.
 

@@ -1,10 +1,8 @@
 name: vlsbench
 class: guardrail_eval.benchmarks.vlsbench.VLSBench
 
-# Metadata in `data.json`, images bundled in `imgs.tar` at the repo root.
-# We download only those two files (not the 2.5 GB parquet shards) and
-# extract the tar once into the cache dir.
-hf_id: Foreshhh/vlsbench
+# Local dataset directory. Place `data.json` and `imgs.tar` here.
+dataset_path: datasets/vlsbench
 
 metadata_file: data.json
 images_archive: imgs.tar

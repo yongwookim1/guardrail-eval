@@ -1,9 +1,8 @@
 name: siuo
 class: guardrail_eval.benchmarks.siuo.SIUO
 
-# HF dataset repo. Images live in `images/` and prompts in `siuo_gen.json`,
-# so one snapshot_download is enough — no separate GitHub fetch needed.
-hf_id: sinwang/SIUO
+# Local dataset directory. Place the cloned dataset repo here.
+dataset_path: datasets/SIUO
 
 # Which task file inside the repo to read. `siuo_gen.json` is open-ended
 # generation; switch to `siuo_mcqa.json` for the multiple-choice variant.

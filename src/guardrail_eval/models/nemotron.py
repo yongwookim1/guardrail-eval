@@ -20,18 +20,28 @@ from .registry import register_model
 
 _LABEL_RE = re.compile(r"^\s*User Safety\s*:\s*(safe|unsafe)", re.IGNORECASE | re.MULTILINE)
 _CATEGORIES_RE = re.compile(r"^\s*Safety Categories\s*:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
+_BARE_LABEL_RE = re.compile(r"^\s*(safe|unsafe)\s*$", re.IGNORECASE | re.MULTILINE)
 
 
-def parse_nemotron_output(raw: str) -> tuple[str, list[str]]:
-    """Return (label, categories). Label is 'safe', 'unsafe', or 'error' if unparseable."""
+def parse_nemotron_output(raw: str) -> tuple[str, list[str], str | None]:
+    """Return (label, categories, error_reason)."""
     label_match = _LABEL_RE.search(raw or "")
-    label = label_match.group(1).lower() if label_match else "error"
+    if label_match:
+        label = label_match.group(1).lower()
+        error_reason = None
+    else:
+        bare_match = _BARE_LABEL_RE.search(raw or "")
+        if bare_match:
+            label = bare_match.group(1).lower()
+            error_reason = None
+        else:
+            return "error", [], "missing_user_safety_label"
 
     cats: list[str] = []
     cat_match = _CATEGORIES_RE.search(raw or "")
     if cat_match:
         cats = [c.strip() for c in cat_match.group(1).split(",") if c.strip()]
-    return label, cats
+    return label, cats, error_reason
 
 
 @register_model("nemotron_cs")
@@ -41,7 +51,7 @@ class NemotronContentSafety(GuardrailModel):
         self.request_categories: str = config.get("request_categories", "/categories")
         self.sampling: dict[str, Any] = config.get("sampling", {})
         self.backend = VLLMBackend(
-            hf_id=resolve_model_source(config),
+            model_ref=resolve_model_source(config),
             backend_kwargs=config.get("backend_kwargs", {}),
         )
 
@@ -56,9 +66,10 @@ class NemotronContentSafety(GuardrailModel):
         )
         verdicts: list[Verdict] = []
         for raw, batch_avg_latency in outputs:
-            label, cats = parse_nemotron_output(raw)
+            label, cats, error_reason = parse_nemotron_output(raw)
             verdicts.append(Verdict(
                 label=label, categories=cats, raw=raw,
+                error_reason=error_reason,
                 batch_avg_latency_ms=batch_avg_latency,
             ))
         return verdicts

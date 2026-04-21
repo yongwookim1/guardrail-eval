@@ -5,7 +5,7 @@ model_path: models/Llama-Guard-4-12B
 backend: vllm
 backend_kwargs:
   dtype: bfloat16
-  tensor_parallel_size: 2            # 12B early-fusion; 2x A100-80GB is comfortable
+  tensor_parallel_size: 1            # default to single-GPU mode for broader compatibility
   limit_mm_per_prompt: { image: 5 }
   max_model_len: 8192
   gpu_memory_utilization: 0.85

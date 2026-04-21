@@ -16,31 +16,28 @@ from pathlib import Path
 from typing import Any
 
 from ..types import Sample
-from ._hf_common import HFFileBenchmark, extract_tar_once, load_json, open_image
+from .base import resolve_dataset_path
+from ._hf_common import HFFileBenchmark, extract_tar_once, load_json
 from .registry import register_benchmark
 
 
 @register_benchmark("vlsbench")
 class VLSBench(HFFileBenchmark):
     def _prepare(self) -> tuple[list[dict[str, Any]], Path]:
-        from huggingface_hub import hf_hub_download
-
-        repo_id = self.config["hf_id"]
+        local = resolve_dataset_path(self.config)
         metadata_file = self.config.get("metadata_file", "data.json")
         images_archive = self.config.get("images_archive", "imgs.tar")
-
-        # Pull only the two files we need (skip the 2.5 GB parquet shards).
-        metadata_path = Path(hf_hub_download(
-            repo_id=repo_id, repo_type="dataset", filename=metadata_file,
-        ))
-        tar_path = Path(hf_hub_download(
-            repo_id=repo_id, repo_type="dataset", filename=images_archive,
-        ))
+        metadata_path = local / metadata_file
+        tar_path = local / images_archive
+        if not metadata_path.exists():
+            raise FileNotFoundError(f"VLSBench metadata file not found: {metadata_path}")
+        if not tar_path.exists():
+            raise FileNotFoundError(f"VLSBench images archive not found: {tar_path}")
 
         # The tar extracts to <cache>/imgs/. image_paths in data.json are
         # relative to the tar root ("imgs/0.png"), so the image root is the
-        # cache dir itself.
-        extract_root = tar_path.parent
+        # dataset dir itself.
+        extract_root = local
         extract_tar_once(tar_path, into=extract_root, sentinel_subdir="imgs")
 
         records = load_json(metadata_path)
@@ -54,7 +51,8 @@ class VLSBench(HFFileBenchmark):
         return Sample(
             id=f"vlsbench_{iid}",
             text=record["instruction"],
-            image=open_image(image_root / rel_path),
+            image=None,
+            image_path=str((image_root / rel_path).resolve()),
             expected_label=self.expected_label,  # type: ignore[arg-type]
             category=record.get("category"),
             meta={

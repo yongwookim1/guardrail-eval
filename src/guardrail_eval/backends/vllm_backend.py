@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from ..io import pil_to_data_uri
+from ..io import file_to_data_uri, pil_to_data_uri
 from ..types import Sample
 
 
@@ -14,12 +14,12 @@ class VLLMBackend:
     only owns the engine lifecycle and a single `chat(...)` entry point.
     """
 
-    def __init__(self, hf_id: str, backend_kwargs: dict[str, Any] | None = None) -> None:
+    def __init__(self, model_ref: str, backend_kwargs: dict[str, Any] | None = None) -> None:
         from vllm import LLM  # imported lazily so unit tests don't need vLLM
 
         backend_kwargs = backend_kwargs or {}
-        self.hf_id = hf_id
-        self.llm = LLM(model=hf_id, **backend_kwargs)
+        self.model_ref = model_ref
+        self.llm = LLM(model=model_ref, **backend_kwargs)
 
     def chat(
         self,
@@ -53,10 +53,20 @@ class VLLMBackend:
         return [(o.outputs[0].text, batch_avg_ms) for o in outputs]
 
     @staticmethod
-    def build_user_message(text: str | None, image) -> dict[str, Any]:
+    def build_user_message(
+        text: str | None,
+        image,
+        *,
+        image_path: str | None = None,
+        image_data_uri: str | None = None,
+    ) -> dict[str, Any]:
         """Build an OpenAI-style user message with optional image."""
         content: list[dict[str, Any]] = []
-        if image is not None:
+        if image_data_uri:
+            content.append({"type": "image_url", "image_url": {"url": image_data_uri}})
+        elif image_path:
+            content.append({"type": "image_url", "image_url": {"url": file_to_data_uri(image_path)}})
+        elif image is not None:
             content.append({"type": "image_url", "image_url": {"url": pil_to_data_uri(image)}})
         if text:
             content.append({"type": "text", "text": text})
@@ -69,4 +79,9 @@ class VLLMBackend:
 
 def build_user_messages(samples: list[Sample]) -> list[list[dict[str, Any]]]:
     """Convenience: one-user-turn conversations for a batch of samples."""
-    return [[VLLMBackend.build_user_message(s.text, s.image)] for s in samples]
+    return [[VLLMBackend.build_user_message(
+        s.text,
+        s.image,
+        image_path=s.image_path,
+        image_data_uri=s.image_data_uri,
+    )] for s in samples]
