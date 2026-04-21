@@ -70,3 +70,17 @@ class VLLMBackend:
 def build_user_messages(samples: list[Sample]) -> list[list[dict[str, Any]]]:
     """Convenience: one-user-turn conversations for a batch of samples."""
     return [[VLLMBackend.build_user_message(s.text, s.image_path)] for s in samples]
+
+
+def chat_samples(
+    backend: VLLMBackend,
+    samples: list[Sample],
+    *,
+    sampling: dict[str, Any],
+    chat_template_kwargs: dict[str, Any] | None = None,
+) -> list[tuple[str, float]]:
+    return backend.chat(
+        build_user_messages(samples),
+        sampling=sampling,
+        chat_template_kwargs=chat_template_kwargs,
+    )

@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..backends.vllm_backend import VLLMBackend, build_user_messages
+from ..backends.vllm_backend import VLLMBackend, chat_samples as vllm_chat_samples
 from ..types import Sample, Verdict
 from .base import GuardrailModel, resolve_model_source
 from .registry import register_model
@@ -44,21 +44,32 @@ def parse_llama_guard_output(raw: str) -> tuple[str, list[str], str | None]:
     return first, cats, None
 
 
+def _build_backend(config: dict[str, Any], model_ref: str):
+    backend_name = str(config.get("backend", "vllm"))
+    backend_kwargs = config.get("backend_kwargs", {})
+    if backend_name == "vllm":
+        return backend_name, VLLMBackend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+    if backend_name == "transformers":
+        from ..backends.transformers_llama4_backend import TransformersLlama4Backend
+
+        return backend_name, TransformersLlama4Backend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+    raise ValueError(f"Unsupported backend for llama_guard_4: {backend_name}")
+
+
 @register_model("llama_guard_4")
 class LlamaGuard4(GuardrailModel):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.sampling: dict[str, Any] = config.get("sampling", {"max_tokens": 20, "temperature": 0.0})
-        self.backend = VLLMBackend(
-            model_ref=resolve_model_source(config),
-            backend_kwargs=config.get("backend_kwargs", {}),
-        )
+        self.backend_name, self.backend = _build_backend(config, resolve_model_source(config))
 
     def classify_batch(self, samples: list[Sample]) -> list[Verdict]:
         if not samples:
             return []
-        conversations = build_user_messages(samples)
-        outputs = self.backend.chat(conversations, sampling=self.sampling)
+        if self.backend_name == "vllm":
+            outputs = vllm_chat_samples(self.backend, samples, sampling=self.sampling)
+        else:
+            outputs = self.backend.chat_samples(samples, sampling=self.sampling)
         verdicts: list[Verdict] = []
         for raw, batch_avg_latency in outputs:
             label, cats, error_reason = parse_llama_guard_output(raw)

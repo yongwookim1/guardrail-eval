@@ -111,10 +111,10 @@ guardrail-eval/
 
 - **Nemotron-3-Content-Safety** (4B, Gemma-3 base). Requires `request_categories`
   chat-template arg; we pass `"/categories"` so `Safety Categories: ...` is emitted.
-- **Llama-Guard-4-12B** (Llama-4 early-fusion). HF card documents only the
-  `transformers` path, but the architecture is vLLM-supported. If vLLM fails to
-  load this model, implement a `transformers` backend and switch `backend: vllm`
-  in `configs/models/llama_guard_4.yaml`.
+- **Llama-Guard-4-12B** (Llama-4 early-fusion). This repo uses a
+  `transformers` backend by default because the model card documents that path
+  directly and it is more reliable than the native vLLM model path for this
+  setup.
 
 ## Tests
 
