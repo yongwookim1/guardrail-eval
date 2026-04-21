@@ -78,6 +78,7 @@ class TransformersLlama4Backend:
                 do_sample=do_sample,
                 temperature=temperature if do_sample else None,
                 top_p=top_p if do_sample else None,
+                cache_implementation="dynamic",
             )
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             trimmed = generated[:, inputs["input_ids"].shape[-1]:]
