@@ -6,12 +6,35 @@ from ..types import Sample
 from .transformers_common import TransformersMultimodalBackend
 
 
+def _coerce_float_field(mapping: Any, key: str) -> None:
+    if not isinstance(mapping, dict) or key not in mapping:
+        return
+    value = mapping[key]
+    if isinstance(value, int):
+        mapping[key] = float(value)
+
+
+def _normalize_llama4_rope(target: Any) -> None:
+    rope_parameters = getattr(target, "rope_parameters", None)
+    if isinstance(rope_parameters, dict):
+        _coerce_float_field(rope_parameters, "factor")
+        _coerce_float_field(rope_parameters, "high_freq_factor")
+        _coerce_float_field(rope_parameters, "low_freq_factor")
+
+    rope_scaling = getattr(target, "rope_scaling", None)
+    if isinstance(rope_scaling, dict):
+        _coerce_float_field(rope_scaling, "factor")
+        _coerce_float_field(rope_scaling, "high_freq_factor")
+        _coerce_float_field(rope_scaling, "low_freq_factor")
+
+
 def _normalize_llama4_config(config: Any, *, attention_chunk_size: int = 8192) -> None:
     text_config = getattr(config, "text_config", None)
     targets = [target for target in (config, text_config) if target is not None]
     for target in targets:
         if getattr(target, "attention_chunk_size", None) is None:
             setattr(target, "attention_chunk_size", attention_chunk_size)
+        _normalize_llama4_rope(target)
 
 
 class TransformersLlama4Backend(TransformersMultimodalBackend):

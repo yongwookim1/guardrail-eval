@@ -75,7 +75,7 @@ def test_chat_samples_batches_transformers_requests() -> None:
     assert len(backend.processor.apply_calls) == 1
     messages_batch, kwargs = backend.processor.apply_calls[0]
     assert len(messages_batch) == 2
-    assert kwargs["padding"] is True
+    assert kwargs["processor_kwargs"] == {"padding": True}
     assert len(backend.model.generate_calls) == 1
     assert backend.model.generate_calls[0]["use_cache"] is True
     assert backend.model.generate_calls[0]["max_new_tokens"] == 7

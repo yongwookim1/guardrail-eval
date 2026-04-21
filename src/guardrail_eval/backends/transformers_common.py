@@ -55,6 +55,10 @@ class TransformersMultimodalBackend:
     def _chat_template_kwargs(self, chat_template_kwargs: dict[str, Any] | None) -> dict[str, Any]:
         return chat_template_kwargs or {}
 
+    def _processor_kwargs(self, samples: list[Sample]) -> dict[str, Any]:
+        del samples
+        return {"padding": True}
+
     def _generation_kwargs(self, sampling: dict[str, Any]) -> dict[str, Any]:
         max_new_tokens = int(sampling.get("max_tokens", self.default_max_tokens))
         temperature = float(sampling.get("temperature", 0.0))
@@ -80,18 +84,20 @@ class TransformersMultimodalBackend:
 
         generation_kwargs = self._generation_kwargs(sampling)
         template_kwargs = self._chat_template_kwargs(chat_template_kwargs)
+        processor_kwargs = self._processor_kwargs(samples)
         messages_batch = [self._build_messages(sample) for sample in samples]
 
         try:
-            inputs = self.processor.apply_chat_template(
-                messages_batch,
-                tokenize=True,
-                add_generation_prompt=True,
-                return_tensors="pt",
-                return_dict=True,
-                padding=True,
+            apply_kwargs: dict[str, Any] = {
+                "tokenize": True,
+                "add_generation_prompt": True,
+                "return_tensors": "pt",
+                "return_dict": True,
                 **template_kwargs,
-            ).to(self.device)
+            }
+            if processor_kwargs:
+                apply_kwargs["processor_kwargs"] = processor_kwargs
+            inputs = self.processor.apply_chat_template(messages_batch, **apply_kwargs).to(self.device)
         except Exception as exc:
             sample_ids = ", ".join(sample.id for sample in samples[:3])
             if len(samples) > 3:
