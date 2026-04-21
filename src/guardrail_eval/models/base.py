@@ -30,23 +30,13 @@ class GuardrailModel(ABC):
 
 
 def resolve_model_source(config: dict[str, Any]) -> str:
-    """Return the vLLM model reference from config.
-
-    Prefer a local `model_path` when provided so offline deployments can keep
-    weights under the repo's `models/` directory. Fall back to legacy `hf_id`
-    for remote/HF-cache based usage.
-    """
+    """Return the local vLLM model path from config."""
     model_path = config.get("model_path")
-    if model_path:
-        path = Path(model_path).expanduser()
-        if not path.is_absolute():
-            path = REPO_ROOT / path
-        if not path.exists():
-            raise FileNotFoundError(f"Configured model_path does not exist: {path}")
-        return str(path.resolve())
-
-    hf_id = config.get("hf_id")
-    if hf_id:
-        return str(hf_id)
-
-    raise KeyError("Model config must define either 'model_path' or 'hf_id'")
+    if not model_path:
+        raise KeyError("Model config must define 'model_path'")
+    path = Path(model_path).expanduser()
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    if not path.exists():
+        raise FileNotFoundError(f"Configured model_path does not exist: {path}")
+    return str(path.resolve())

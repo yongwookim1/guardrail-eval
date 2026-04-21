@@ -39,7 +39,7 @@ def _sample(idx: int, text: str) -> Sample:
     return Sample(
         id=f"s{idx}",
         text=text,
-        image=None,
+        image_path=None,
         expected_label="unsafe",
     )
 

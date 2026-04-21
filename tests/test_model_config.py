@@ -16,11 +16,12 @@ def test_resolve_model_source_prefers_repo_relative_model_path():
         model_dir.rmdir()
 
 
-def test_resolve_model_source_falls_back_to_hf_id():
-    assert resolve_model_source({"name": "test", "hf_id": "org/repo"}) == "org/repo"
-
-
 def test_resolve_model_source_missing_local_path_raises():
     missing = REPO_ROOT / "models" / "does-not-exist"
     with pytest.raises(FileNotFoundError, match=str(missing)):
         resolve_model_source({"name": "test", "model_path": "models/does-not-exist"})
+
+
+def test_resolve_model_source_missing_key_raises():
+    with pytest.raises(KeyError, match="model_path"):
+        resolve_model_source({"name": "test"})

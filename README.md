@@ -73,18 +73,18 @@ Per-run output lands at `results/<model>/<benchmark>/`:
 
 1. Subclass `GuardrailModel` in `src/guardrail_eval/models/<name>.py`. Implement
    `classify_batch(samples) -> list[Verdict]`. Decorate with `@register_model("<name>")`.
-2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and either
-   a local `model_path:` or a remote `hf_id:`.
+2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and a local
+   `model_path:`.
 3. Import the module in `src/guardrail_eval/models/__init__.py`.
 
 That's the whole contract — the evaluator, CLI, and metrics pick it up automatically.
 
 ## Adding a new benchmark
 
-Mirror of the model path: subclass `Benchmark` (or `HFFileBenchmark` from
+Mirror of the model path: subclass `Benchmark` (or `LocalFileBenchmark` from
 `_hf_common.py` if the repo stores JSON metadata + image files), decorate with
 `@register_benchmark`, add a YAML, import in `benchmarks/__init__.py`. An
-`HFFileBenchmark` subclass is typically two methods: `_prepare()` (resolve local
+`LocalFileBenchmark` subclass is typically two methods: `_prepare()` (resolve local
 files + return `(records, image_root)`) and `_record_to_sample()` (map one record
 to a `Sample`). Everything else — tqdm totals, streaming, error handling —
 is handled by the base class.

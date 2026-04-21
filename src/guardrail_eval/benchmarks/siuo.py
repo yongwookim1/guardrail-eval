@@ -15,12 +15,12 @@ from typing import Any
 
 from ..types import Sample
 from .base import resolve_dataset_path
-from ._hf_common import HFFileBenchmark, load_json
+from ._hf_common import LocalFileBenchmark, load_json
 from .registry import register_benchmark
 
 
 @register_benchmark("siuo")
-class SIUO(HFFileBenchmark):
+class SIUO(LocalFileBenchmark):
     def _prepare(self) -> tuple[list[dict[str, Any]], Path]:
         prompts_file = self.config.get("prompts_file", "siuo_gen.json")
         images_dir = self.config.get("images_dir", "images")
@@ -42,7 +42,6 @@ class SIUO(HFFileBenchmark):
         return Sample(
             id=f"siuo_{qid}",
             text=record["question"],
-            image=None,
             image_path=str((image_root / image_name).resolve()),
             expected_label=self.expected_label,  # type: ignore[arg-type]
             category=record.get("category"),

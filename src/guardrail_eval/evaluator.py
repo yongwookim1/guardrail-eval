@@ -21,35 +21,6 @@ def _take_batch(it: Iterator[Sample], size: int) -> list[Sample]:
         except StopIteration:
             break
     return batch
-
-
-def _is_oom_error(exc: BaseException) -> bool:
-    text = str(exc).lower()
-    return "out of memory" in text or "cuda oom" in text or "cublas_status_alloc_failed" in text
-
-
-def _clear_cuda_cache() -> None:
-    try:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
-
-
-def _classify_with_backoff(model: GuardrailModel, batch: list[Sample]) -> tuple[list[Any], int]:
-    try:
-        return model.classify_batch(batch), len(batch)
-    except RuntimeError as exc:
-        if not _is_oom_error(exc) or len(batch) == 1:
-            raise
-        _clear_cuda_cache()
-        split = max(1, len(batch) // 2)
-        left, left_size = _classify_with_backoff(model, batch[:split])
-        right, right_size = _classify_with_backoff(model, batch[split:])
-        return left + right, min(left_size, right_size)
-
-
 def run(
     model: GuardrailModel,
     benchmark: Benchmark,
@@ -79,7 +50,7 @@ def run(
 
     total = benchmark.num_samples(limit=limit)
     remaining_total = max(total - len(existing_ids), 0) if total is not None else None
-    target_batch_size = max(batch_size, 1)
+    batch_size = max(batch_size, 1)
 
     sample_iter = benchmark.iter_samples(limit=limit)
     if existing_ids:
@@ -92,11 +63,10 @@ def run(
     ) as pbar:
         sample_iter = iter(sample_iter)
         while True:
-            batch = _take_batch(sample_iter, target_batch_size)
+            batch = _take_batch(sample_iter, batch_size)
             if not batch:
                 break
-            verdicts, stable_batch_size = _classify_with_backoff(model, batch)
-            target_batch_size = min(target_batch_size, stable_batch_size)
+            verdicts = model.classify_batch(batch)
             if len(verdicts) != len(batch):
                 raise ValueError(
                     f"{model.name} returned {len(verdicts)} verdicts for batch of size {len(batch)}"
@@ -113,10 +83,6 @@ def run(
                 batch_records.append(rec)
 
             writer.write_many(batch_records, flush=True)
-
-            for s in batch:
-                s.image = None
-                s.image_data_uri = None
             pbar.update(len(batch))
 
     summary = {

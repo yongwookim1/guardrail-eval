@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from PIL.Image import Image
-
 Label = Literal["safe", "unsafe", "error"]
 
 
@@ -12,10 +10,8 @@ Label = Literal["safe", "unsafe", "error"]
 class Sample:
     id: str
     text: str | None
-    image: Image | None
+    image_path: str | None
     expected_label: Label
-    image_path: str | None = None
-    image_data_uri: str | None = None
     category: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 

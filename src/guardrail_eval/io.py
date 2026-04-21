@@ -2,36 +2,17 @@ from __future__ import annotations
 
 import base64
 import functools
-import io
 import json
 import mimetypes
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
-from PIL.Image import Image
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
     with open(path) as f:
         return yaml.safe_load(f)
-
-
-def pil_to_data_uri(image: Image, fmt: str = "JPEG", quality: int = 90) -> str:
-    """Encode a PIL image as a data: URI for OpenAI-style multimodal messages.
-
-    Default is JPEG (2–4× smaller than PNG for typical photos). SigLIP / Llama-4
-    vision encoders resize to ~896 px anyway, so JPEG artifacts are negligible.
-    """
-    buf = io.BytesIO()
-    save_kwargs: dict[str, int | bool] = {}
-    if fmt.upper() == "JPEG":
-        save_kwargs = {"quality": quality, "optimize": True}
-    image.convert("RGB").save(buf, format=fmt, **save_kwargs)  # type: ignore[arg-type]
-    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-    mime = f"image/{'jpeg' if fmt.upper() == 'JPEG' else fmt.lower()}"
-    return f"data:{mime};base64,{b64}"
-
 
 @functools.lru_cache(maxsize=8192)
 def file_to_data_uri(path: str) -> str:

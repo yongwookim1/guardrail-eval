@@ -17,8 +17,8 @@ from ..types import Sample
 from .base import Benchmark
 
 
-class HFFileBenchmark(Benchmark):
-    """Base for benchmarks whose HF repo stores JSON metadata + image files."""
+class LocalFileBenchmark(Benchmark):
+    """Base for benchmarks backed by local JSON metadata + image files."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)

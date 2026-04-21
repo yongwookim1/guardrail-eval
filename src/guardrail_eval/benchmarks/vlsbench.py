@@ -17,12 +17,12 @@ from typing import Any
 
 from ..types import Sample
 from .base import resolve_dataset_path
-from ._hf_common import HFFileBenchmark, extract_tar_once, load_json
+from ._hf_common import LocalFileBenchmark, extract_tar_once, load_json
 from .registry import register_benchmark
 
 
 @register_benchmark("vlsbench")
-class VLSBench(HFFileBenchmark):
+class VLSBench(LocalFileBenchmark):
     def _prepare(self) -> tuple[list[dict[str, Any]], Path]:
         local = resolve_dataset_path(self.config)
         metadata_file = self.config.get("metadata_file", "data.json")
@@ -51,7 +51,6 @@ class VLSBench(HFFileBenchmark):
         return Sample(
             id=f"vlsbench_{iid}",
             text=record["instruction"],
-            image=None,
             image_path=str((image_root / rel_path).resolve()),
             expected_label=self.expected_label,  # type: ignore[arg-type]
             category=record.get("category"),
