@@ -18,15 +18,8 @@ dependencies = [
     "tqdm>=4.66.0",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=8.0.0", "ruff>=0.6.0"]
-
 [project.scripts]
 guardrail-eval = "guardrail_eval.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src"]

@@ -7,11 +7,10 @@ evaluation pipeline without decoding them up front.
 """
 from __future__ import annotations
 
-import json
 import tarfile
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Iterator
 
 from ..types import Sample
 from .base import Benchmark
@@ -57,11 +56,6 @@ class LocalFileBenchmark(Benchmark):
 
 
 # ---- utilities -------------------------------------------------------------
-
-def load_json(path: str | Path) -> Any:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
 
 def extract_tar_once(tar_path: Path, into: Path, sentinel_subdir: str) -> Path:
     """Extract `tar_path` into `into` if `into/sentinel_subdir` doesn't exist.

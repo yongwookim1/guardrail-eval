@@ -14,6 +14,7 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
     with open(path) as f:
         return yaml.safe_load(f)
 
+
 @functools.lru_cache(maxsize=8192)
 def file_to_data_uri(path: str) -> str:
     """Encode an existing image file as a data: URI.

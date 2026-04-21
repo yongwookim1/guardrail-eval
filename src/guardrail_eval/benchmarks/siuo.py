@@ -13,9 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ..io import load_json
 from ..types import Sample
 from .base import resolve_dataset_path
-from ._hf_common import LocalFileBenchmark, load_json
+from ._hf_common import LocalFileBenchmark
 from .registry import register_benchmark
 
 

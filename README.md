@@ -103,8 +103,7 @@ guardrail-eval/
 │   ├── metrics.py                         # unsafe-recall, category breakdown
 │   ├── io.py                              # JSONL / image-to-data-uri helpers
 │   └── cli.py                             # `guardrail-eval ...`
-├── scripts/run_eval.py
-└── tests/                                 # parser + metrics unit tests (no vLLM needed)
+└── scripts/run_eval.py
 ```
 
 ## Notes on the models
@@ -116,11 +115,3 @@ guardrail-eval/
   `transformers` backend by default because the model card documents that path
   directly and it is more reliable than the native vLLM model path for this
   setup.
-
-## Tests
-
-```bash
-pytest
-```
-
-Parser and metric tests do not import vLLM or download any weights.
