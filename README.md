@@ -4,7 +4,7 @@ Unified evaluation harness for multimodal guardrail models.
 
 Currently wired for:
 
-| Model | HF id | Modality |
+| Model | Local path | Modality |
 | --- | --- | --- |
 | `nemotron_cs` | `models/Nemotron-3-Content-Safety` | text + image |
 | `llama_guard_4` | `models/Llama-Guard-4-12B` | text + image |
@@ -65,7 +65,7 @@ python scripts/run_eval.py --model all --benchmark all
 
 Per-run output lands at `results/<model>/<benchmark>/`:
 
-- `results.json` — one record per sample with prediction, raw model output, latency
+- `results.json` — one JSON record per line with prediction, raw model output, latency
 - `results_summary.json` — `unsafe_recall`, `error_rate`, per-category breakdown
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
@@ -109,8 +109,9 @@ guardrail-eval/
 
 ## Notes on the models
 
-- **Nemotron-3-Content-Safety** (4B, Gemma-3 base). Requires `request_categories`
-  chat-template arg; we pass `"/categories"` so `Safety Categories: ...` is emitted.
+- **Nemotron-3-Content-Safety** (4B, Gemma-3 base). This repo uses a
+  `transformers` backend by default and passes `request_categories="/categories"`
+  through the chat template so `Safety Categories: ...` is emitted.
 - **Llama-Guard-4-12B** (Llama-4 early-fusion). This repo uses a
   `transformers` backend by default because the model card documents that path
   directly and it is more reliable than the native vLLM model path for this

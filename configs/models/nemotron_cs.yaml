@@ -2,14 +2,11 @@ name: nemotron_cs
 class: guardrail_eval.models.nemotron.NemotronContentSafety
 model_path: models/Nemotron-3-Content-Safety
 
-backend: vllm
+backend: transformers
 backend_kwargs:
   dtype: bfloat16
-  tensor_parallel_size: 1
-  limit_mm_per_prompt: { image: 1 }
-  max_model_len: 8192
-  gpu_memory_utilization: 0.85
-  enforce_eager: true
+  device: cuda
+  device_map: cuda
 
 sampling:
   temperature: 0.0

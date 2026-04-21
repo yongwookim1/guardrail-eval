@@ -1,36 +1,38 @@
 from __future__ import annotations
 
+import base64
+import functools
+import io
 import time
+from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 from ..types import Sample
+from .transformers_llama4_backend import _resolve_torch_dtype
 
 
-def _resolve_torch_dtype(dtype_name: str):
-    import torch
+@functools.lru_cache(maxsize=8192)
+def _encode_image_base64(path: str) -> str:
+    image = Image.open(path).convert("RGB")
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG", optimize=True, quality=90)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    value = getattr(torch, dtype_name, None)
-    if value is None:
-        raise ValueError(f"Unsupported torch dtype for transformers backend: {dtype_name}")
-    return value
 
-
-class TransformersLlama4Backend:
-    """Transformers-based backend for Llama Guard 4.
-
-    This follows the model card's recommended load path instead of the native
-    vLLM model implementation, which has proven brittle for this repo's setup.
-    """
+class TransformersGemma3Backend:
+    """Transformers-based backend for Gemma-3 style multimodal chat models."""
 
     def __init__(self, model_ref: str, backend_kwargs: dict[str, Any] | None = None) -> None:
         import torch
-        from transformers import AutoProcessor, Llama4ForConditionalGeneration
+        from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 
         backend_kwargs = backend_kwargs or {}
         self.model_ref = model_ref
         self.device = str(backend_kwargs.get("device", "cuda"))
         self.processor = AutoProcessor.from_pretrained(model_ref)
-        self.model = Llama4ForConditionalGeneration.from_pretrained(
+        self.model = Gemma3ForConditionalGeneration.from_pretrained(
             model_ref,
             device_map=backend_kwargs.get("device_map", self.device),
             torch_dtype=_resolve_torch_dtype(str(backend_kwargs.get("dtype", "bfloat16"))),
@@ -41,14 +43,15 @@ class TransformersLlama4Backend:
     def _build_messages(sample: Sample) -> list[dict[str, Any]]:
         content: list[dict[str, Any]] = []
         if sample.image_path:
-            content.append({"type": "image", "path": sample.image_path})
+            image_path = str(Path(sample.image_path))
+            content.append({"type": "image", "image": _encode_image_base64(image_path)})
         if sample.text:
             content.append({"type": "text", "text": sample.text})
         return [{"role": "user", "content": content}]
 
     @staticmethod
     def _generation_kwargs(sampling: dict[str, Any]) -> dict[str, Any]:
-        max_new_tokens = int(sampling.get("max_tokens", 20))
+        max_new_tokens = int(sampling.get("max_tokens", 128))
         temperature = float(sampling.get("temperature", 0.0))
         kwargs: dict[str, Any] = {
             "max_new_tokens": max_new_tokens,
@@ -67,9 +70,8 @@ class TransformersLlama4Backend:
         sampling: dict[str, Any],
         chat_template_kwargs: dict[str, Any] | None = None,
     ) -> list[tuple[str, float]]:
-        del chat_template_kwargs  # unused in the transformers path
-
         outputs: list[tuple[str, float]] = []
+        chat_template_kwargs = chat_template_kwargs or {}
         generation_kwargs = self._generation_kwargs(sampling)
 
         for sample in samples:
@@ -81,9 +83,10 @@ class TransformersLlama4Backend:
                     add_generation_prompt=True,
                     return_tensors="pt",
                     return_dict=True,
+                    **chat_template_kwargs,
                 ).to(self.device)
             except Exception as exc:
-                raise RuntimeError(f"Failed to preprocess llama_guard_4 sample {sample.id}") from exc
+                raise RuntimeError(f"Failed to preprocess nemotron_cs sample {sample.id}") from exc
 
             t0 = time.perf_counter()
             try:
@@ -91,7 +94,7 @@ class TransformersLlama4Backend:
                     generated = self.model.generate(**inputs, **generation_kwargs)
             except Exception as exc:
                 raise RuntimeError(
-                    f"Failed to generate llama_guard_4 output for sample {sample.id}"
+                    f"Failed to generate nemotron_cs output for sample {sample.id}"
                 ) from exc
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             trimmed = generated[:, inputs["input_ids"].shape[-1]:]

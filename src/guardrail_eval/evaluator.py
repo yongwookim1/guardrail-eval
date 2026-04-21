@@ -21,6 +21,8 @@ def _take_batch(it: Iterator[Sample], size: int) -> list[Sample]:
         except StopIteration:
             break
     return batch
+
+
 def run(
     model: GuardrailModel,
     benchmark: Benchmark,
