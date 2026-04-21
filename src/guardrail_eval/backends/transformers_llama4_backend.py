@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 from typing import Any
 
 from ..types import Sample
@@ -13,6 +14,14 @@ def _resolve_torch_dtype(dtype_name: str):
     if value is None:
         raise ValueError(f"Unsupported torch dtype for transformers backend: {dtype_name}")
     return value
+
+
+def _normalize_llama4_config(config: Any, *, attention_chunk_size: int = 8192) -> None:
+    text_config = getattr(config, "text_config", None)
+    targets = [target for target in (config, text_config) if target is not None]
+    for target in targets:
+        if getattr(target, "attention_chunk_size", None) is None:
+            setattr(target, "attention_chunk_size", attention_chunk_size)
 
 
 class TransformersLlama4Backend:
@@ -34,6 +43,10 @@ class TransformersLlama4Backend:
             model_ref,
             device_map=backend_kwargs.get("device_map", self.device),
             torch_dtype=_resolve_torch_dtype(str(backend_kwargs.get("dtype", "bfloat16"))),
+        )
+        _normalize_llama4_config(
+            self.model.config,
+            attention_chunk_size=int(backend_kwargs.get("attention_chunk_size", 8192)),
         )
         self._torch = torch
 

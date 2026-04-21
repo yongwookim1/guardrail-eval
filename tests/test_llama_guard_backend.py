@@ -4,8 +4,13 @@ import types
 
 import pytest
 
+from types import SimpleNamespace
+
 from guardrail_eval.models.llama_guard import _build_backend
-from guardrail_eval.backends.transformers_llama4_backend import TransformersLlama4Backend
+from guardrail_eval.backends.transformers_llama4_backend import (
+    TransformersLlama4Backend,
+    _normalize_llama4_config,
+)
 
 
 def test_build_backend_rejects_unknown_backend():
@@ -52,3 +57,10 @@ def test_llama4_generation_kwargs_include_sampling_fields():
     assert kwargs["temperature"] == 0.8
     assert kwargs["top_p"] == 0.9
     assert kwargs["use_cache"] is False
+
+
+def test_normalize_llama4_config_sets_attention_chunk_size_on_root_and_text_config():
+    cfg = SimpleNamespace(attention_chunk_size=None, text_config=SimpleNamespace(attention_chunk_size=None))
+    _normalize_llama4_config(cfg, attention_chunk_size=4096)
+    assert cfg.attention_chunk_size == 4096
+    assert cfg.text_config.attention_chunk_size == 4096
