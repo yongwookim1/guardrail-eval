@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", default=str(REPO_ROOT / "results"))
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--resume", action="store_true", help="Resume from existing results.json if present.")
+    parser.add_argument("--resume", action="store_true", help="Resume from existing results.jsonl if present.")
     parser.add_argument("--skip-existing", action="store_true", help="Skip runs that already have a results_summary.json.")
     args = parser.parse_args(argv)
 
@@ -63,9 +63,14 @@ def main(argv: list[str] | None = None) -> int:
                     model_config=model_cfg,
                     benchmark_config=bench_cfg,
                 )
-                print(f"[{model.name}/{benchmark.name}] n={summary['n']} "
-                      f"unsafe_recall={summary['unsafe_recall']} "
-                      f"error_rate={summary['error_rate']:.3f}")
+                print(
+                    f"[{model.name}/{benchmark.name}] "
+                    f"n={summary['n']} "
+                    f"tp={summary['true_positives']} "
+                    f"fn={summary['false_negatives']} "
+                    f"errors={summary['errors']} "
+                    f"unsafe_recall={summary['unsafe_recall']}"
+                )
         finally:
             model.close()
 
