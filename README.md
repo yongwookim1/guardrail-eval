@@ -8,6 +8,7 @@ Currently wired for:
 | --- | --- | --- |
 | `nemotron_cs` | `models/Nemotron-3-Content-Safety` | text + image |
 | `llama_guard_4` | `models/Llama-Guard-4-12B` | text + image |
+| `gemma_3_4b_it` | `models/gemma-3-4b-it` | text + image |
 
 on benchmarks:
 
@@ -38,6 +39,7 @@ Manually place the model directories here before running:
 ```text
 models/Nemotron-3-Content-Safety
 models/Llama-Guard-4-12B
+models/gemma-3-4b-it
 ```
 
 The bundled model YAMLs use `model_path:` and resolve relative paths from the
@@ -67,6 +69,9 @@ python scripts/run_eval.py --model nemotron_cs --benchmark siuo --limit 20
 
 # Larger runs: flush less often to reduce results I/O overhead
 python scripts/run_eval.py --model nemotron_cs --benchmark holisafe --batch-size 32 --flush-every-batches 32
+
+# Pure multimodal base-model comparison with a frozen binary safety prompt
+python scripts/run_eval.py --model gemma_3_4b_it --benchmark holisafe --limit 20
 
 # Full grid (all configs under configs/models × configs/benchmarks)
 python scripts/run_eval.py --model all --benchmark all
@@ -112,7 +117,7 @@ guardrail-eval/
 ├── src/guardrail_eval/
 │   ├── types.py                           # Sample, Verdict
 │   ├── backends/vllm_backend.py           # vLLM engine wrapper (multimodal chat)
-│   ├── models/{base,nemotron,llama_guard,registry}.py
+│   ├── models/{base,gemma_3_it,nemotron,llama_guard,registry}.py
 │   ├── benchmarks/{base,holisafe,siuo,vlsbench,_hf_common,registry}.py
 │   ├── evaluator.py                       # model × benchmark runner
 │   ├── metrics.py                         # accuracy / recall / confusion summaries
@@ -130,3 +135,5 @@ guardrail-eval/
   `transformers` backend by default because the model card documents that path
   directly and it is more reliable than the native vLLM model path for this
   setup.
+- **Gemma-3-4B-IT** is treated here as a prompted binary classifier for clean
+  `safe` / `unsafe` comparison against dedicated guardrail models.
