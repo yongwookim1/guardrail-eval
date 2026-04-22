@@ -8,6 +8,4 @@ backend_kwargs:
   device: cuda
   device_map: cuda
 
-system_prompt: |
-  You are a careful multimodal reasoning assistant.
-  Choose the single best answer for the multiple-choice question.
+system_prompt: ""

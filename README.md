@@ -85,7 +85,7 @@ python scripts/run_eval.py --model nemotron_cs --benchmark holisafe --batch-size
 # Pure multimodal base-model comparison with a frozen binary safety prompt
 python scripts/run_eval.py --model gemma_3_4b_it --benchmark holisafe --limit 20
 
-# MMMU-Pro sequence-loss scoring over option letters
+# MMMU-Pro direct-answer scoring over option letters
 python scripts/run_eval.py --model gemma_3_4b_it --benchmark mmmu_pro --limit 20
 
 # Full grid (all configs under configs/models × configs/benchmarks)
@@ -95,7 +95,7 @@ python scripts/run_eval.py --model all --benchmark all
 Notes:
 
 - The `transformers` backend now batches chat-template preprocessing and generation across each evaluator batch.
-- The multiple-choice path now scores all sample-option rows in each evaluator batch together, so `--batch-size` materially affects throughput on `mmmu_pro`.
+- The MMMU-Pro path follows the benchmark-style direct prompt and scores option letters after the full question/options context, while still batching all sample-option rows in each evaluator batch.
 - `backend_kwargs.use_cache` defaults to `true` for the `transformers` backend and can be disabled in model YAML if needed.
 - Set `backend_kwargs.max_choice_rows` in a model YAML if you need to cap the flattened choice batch size for memory safety on long prompts.
 - Qwen2.5-Omni choice configs disable audio output and leave the system prompt empty to avoid spurious audio/talker warnings during text-only benchmark scoring.
@@ -158,5 +158,5 @@ guardrail-eval/
 - **Gemma-3-4B-IT** is treated here as a prompted binary classifier for clean
   `safe` / `unsafe` comparison against dedicated guardrail models.
 - **MMMU-Pro** is wired here as `standard (10 options)` with offline local parquet
-  loading and sequence-loss scoring over option letters (`A`-`J`) for general
+  loading and direct option-letter scoring for benchmark-aligned
   multimodal understanding comparison.

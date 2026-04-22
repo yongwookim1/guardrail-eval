@@ -9,10 +9,7 @@ from ..types import ChoiceSample, ChoiceVerdict
 from .transformers_common import TransformersMultimodalBackend
 from .transformers_gemma3_backend import _encode_image_base64
 
-DEFAULT_CHOICE_SYSTEM_PROMPT = (
-    "You are a careful multimodal reasoning assistant. "
-    "Choose the single best answer for the multiple-choice question."
-)
+DEFAULT_CHOICE_SYSTEM_PROMPT = ""
 
 
 class TransformersChoiceBackend(TransformersMultimodalBackend):

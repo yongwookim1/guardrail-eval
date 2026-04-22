@@ -13,8 +13,7 @@ from .base import MultipleChoiceBenchmark, resolve_dataset_path
 from .registry import register_benchmark
 
 DEFAULT_PROMPT_PREFIX = (
-    "Solve the multiple-choice question using the provided image(s) and text. "
-    "Return only the single best option letter."
+    "Answer with the option letter from the given choices directly."
 )
 
 
