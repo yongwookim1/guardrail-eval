@@ -7,7 +7,6 @@ backend_kwargs:
   dtype: bfloat16
   device: cuda
   device_map: cuda
+  enable_audio_output: false
 
-system_prompt: |
-  You are a careful multimodal reasoning assistant.
-  Choose the single best answer for the multiple-choice question.
+system_prompt: ""

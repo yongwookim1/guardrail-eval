@@ -95,7 +95,10 @@ python scripts/run_eval.py --model all --benchmark all
 Notes:
 
 - The `transformers` backend now batches chat-template preprocessing and generation across each evaluator batch.
+- The multiple-choice path now scores all sample-option rows in each evaluator batch together, so `--batch-size` materially affects throughput on `mmmu_pro`.
 - `backend_kwargs.use_cache` defaults to `true` for the `transformers` backend and can be disabled in model YAML if needed.
+- Set `backend_kwargs.max_choice_rows` in a model YAML if you need to cap the flattened choice batch size for memory safety on long prompts.
+- Qwen2.5-Omni choice configs disable audio output and leave the system prompt empty to avoid spurious audio/talker warnings during text-only benchmark scoring.
 - Image encoding caches default to 1024 entries. Override with `GUARDRAIL_EVAL_IMAGE_CACHE_MAXSIZE=<n>` when tuning RAM usage.
 - `--model all --benchmark all` now auto-routes each model to the right inference path for the benchmark task type instead of exposing separate user-facing model names.
 
