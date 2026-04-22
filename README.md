@@ -9,6 +9,10 @@ Currently wired for:
 | `nemotron_cs` | `models/Nemotron-3-Content-Safety` | text + image |
 | `llama_guard_4` | `models/Llama-Guard-4-12B` | text + image |
 | `gemma_3_4b_it` | `models/gemma-3-4b-it` | text + image |
+| `qwen2_5_vl_3b_instruct` | `models/Qwen2.5-VL-3B-Instruct` | text + image |
+| `qwen2_5_omni_3b` | `models/Qwen2.5-Omni-3B` | text + image |
+| `omniguard_3b` | `models/OmniGuard-3B` | text + image |
+| `guardreasoner_vl_3b` | `models/GuardReasoner-VL-3B` | text + image |
 
 on benchmarks:
 
@@ -17,6 +21,7 @@ on benchmarks:
 | `siuo` | `datasets/SIUO` | 168 | expected `unsafe` |
 | `vlsbench` | `datasets/vlsbench` | 2,241 | expected `unsafe` |
 | `holisafe` | `datasets/holisafe-bench` | 4,031 | mixed `safe` / `unsafe` from `type` |
+| `mmmu_pro` | `datasets/MMMU_Pro` | 1,730 | MCQ accuracy (`standard (10 options)`) |
 
 None of these datasets is loaded through the standard parquet-with-Image path
 in this repo. They are loaded from local dataset directories in
@@ -25,6 +30,7 @@ dataset-specific loaders:
 - **SIUO** — read `datasets/SIUO/siuo_gen.json` and open images from `datasets/SIUO/images/`.
 - **VLSBench** — read `datasets/vlsbench/data.json` + `datasets/vlsbench/imgs.tar`, then extract the tar once into `datasets/vlsbench/imgs/`.
 - **HoliSafe** — read `datasets/holisafe-bench/holisafe_bench.json` and open images from `datasets/holisafe-bench/images/`; expected labels are derived from the final character of HoliSafe's `type` code (`S` => `safe`, `U` => `unsafe`).
+- **MMMU-Pro** — read local parquet files from `datasets/MMMU_Pro/standard (10 options)/` and materialize embedded images into `datasets/MMMU_Pro/.cache/mmmu_pro_images/` on first use.
 
 ## Setup
 
@@ -40,6 +46,10 @@ Manually place the model directories here before running:
 models/Nemotron-3-Content-Safety
 models/Llama-Guard-4-12B
 models/gemma-3-4b-it
+models/Qwen2.5-VL-3B-Instruct
+models/Qwen2.5-Omni-3B
+models/OmniGuard-3B
+models/GuardReasoner-VL-3B
 ```
 
 The bundled model YAMLs use `model_path:` and resolve relative paths from the
@@ -56,6 +66,8 @@ datasets/vlsbench/imgs.tar
 
 datasets/holisafe-bench/holisafe_bench.json
 datasets/holisafe-bench/images/...
+
+datasets/MMMU_Pro/standard (10 options)/test-*.parquet
 ```
 
 ## Run
@@ -73,6 +85,9 @@ python scripts/run_eval.py --model nemotron_cs --benchmark holisafe --batch-size
 # Pure multimodal base-model comparison with a frozen binary safety prompt
 python scripts/run_eval.py --model gemma_3_4b_it --benchmark holisafe --limit 20
 
+# MMMU-Pro sequence-loss scoring over option letters
+python scripts/run_eval.py --model gemma_3_4b_it --benchmark mmmu_pro --limit 20
+
 # Full grid (all configs under configs/models × configs/benchmarks)
 python scripts/run_eval.py --model all --benchmark all
 ```
@@ -82,17 +97,21 @@ Notes:
 - The `transformers` backend now batches chat-template preprocessing and generation across each evaluator batch.
 - `backend_kwargs.use_cache` defaults to `true` for the `transformers` backend and can be disabled in model YAML if needed.
 - Image encoding caches default to 1024 entries. Override with `GUARDRAIL_EVAL_IMAGE_CACHE_MAXSIZE=<n>` when tuning RAM usage.
+- `--model all --benchmark all` now auto-routes each model to the right inference path for the benchmark task type instead of exposing separate user-facing model names.
 
 Per-run output lands at `results/<model>/<benchmark>/`:
 
 - `results.jsonl` — one JSON record per line with prediction, raw model output, latency
-- `results_summary.json` — accuracy, safe/unsafe precision-recall-F1, balanced accuracy, confusion counts, legacy unsafe-only fields, per-category breakdown, and HoliSafe per-`type` breakdown
+- `results_summary.json` — classification runs emit safe/unsafe precision-recall-F1 plus breakdowns; MCQ runs emit accuracy, errors, and by-subject accuracy
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
 ## Adding a new model
 
 1. Subclass `GuardrailModel` in `src/guardrail_eval/models/<name>.py`. Implement
-   `classify_batch(samples) -> list[Verdict]`. Decorate with `@register_model("<name>")`.
+   `classify_batch(samples) -> list[Verdict]` for safety benchmarks or
+   `score_mcq_batch(samples) -> list[MCQVerdict]` for MCQ benchmarks. Set
+   `task_types: [mcq]` in YAML for MCQ-only models. Decorate with
+   `@register_model("<name>")`.
 2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and a local
    `model_path:`.
 3. Import the module in `src/guardrail_eval/models/__init__.py`.
@@ -101,13 +120,9 @@ That's the whole contract — the evaluator, CLI, and metrics pick it up automat
 
 ## Adding a new benchmark
 
-Mirror of the model path: subclass `Benchmark` (or `LocalFileBenchmark` from
-`_hf_common.py` if the repo stores JSON metadata + image files), decorate with
-`@register_benchmark`, add a YAML, import in `benchmarks/__init__.py`. An
-`LocalFileBenchmark` subclass is typically two methods: `_prepare()` (resolve local
-files + return `(records, image_root)`) and `_record_to_sample()` (map one record
-to a `Sample`). Everything else — tqdm totals, streaming, error handling —
-is handled by the base class.
+Mirror of the model path: subclass `Benchmark`, `MCQBenchmark`, or
+`LocalFileBenchmark` from `_hf_common.py`, decorate with `@register_benchmark`,
+add a YAML, import in `benchmarks/__init__.py`.
 
 ## Layout
 
@@ -115,12 +130,14 @@ is handled by the base class.
 guardrail-eval/
 ├── configs/{models,benchmarks}/*.yaml     # one file per model / benchmark
 ├── src/guardrail_eval/
-│   ├── types.py                           # Sample, Verdict
+│   ├── types.py                           # Sample / Verdict / MCQSample / MCQVerdict
 │   ├── backends/vllm_backend.py           # vLLM engine wrapper (multimodal chat)
-│   ├── models/{base,gemma_3_it,nemotron,llama_guard,registry}.py
-│   ├── benchmarks/{base,holisafe,siuo,vlsbench,_hf_common,registry}.py
-│   ├── evaluator.py                       # model × benchmark runner
-│   ├── metrics.py                         # accuracy / recall / confusion summaries
+│   ├── backends/{transformers_common,transformers_mcq_backends}.py
+│   ├── models/{base,gemma_3_it,mcq,nemotron,llama_guard,registry}.py
+│   ├── benchmarks/{base,holisafe,mmmu_pro,siuo,vlsbench,_hf_common,registry}.py
+│   ├── evaluator.py                       # classification + MCQ runners
+│   ├── metrics.py                         # safety metrics
+│   ├── metrics_mcq.py                     # MCQ accuracy summaries
 │   ├── io.py                              # JSONL / image-to-data-uri helpers
 │   └── cli.py                             # `guardrail-eval ...`
 └── scripts/run_eval.py
@@ -137,3 +154,6 @@ guardrail-eval/
   setup.
 - **Gemma-3-4B-IT** is treated here as a prompted binary classifier for clean
   `safe` / `unsafe` comparison against dedicated guardrail models.
+- **MMMU-Pro** is wired here as `standard (10 options)` with offline local parquet
+  loading and sequence-loss scoring over option letters (`A`-`J`) for general
+  multimodal understanding comparison.

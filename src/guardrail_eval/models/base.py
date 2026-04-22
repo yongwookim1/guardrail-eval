@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from ..types import Sample, Verdict
+from ..types import MCQSample, MCQVerdict, Sample, Verdict
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -17,6 +17,8 @@ class GuardrailModel(ABC):
     def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.name = config["name"]
+        task_types = config.get("task_types", ["classification"])
+        self.task_types = {str(task_type) for task_type in task_types}
 
     @abstractmethod
     def classify_batch(self, samples: list[Sample]) -> list[Verdict]:
@@ -24,6 +26,12 @@ class GuardrailModel(ABC):
 
     def classify(self, sample: Sample) -> Verdict:
         return self.classify_batch([sample])[0]
+
+    def score_mcq_batch(self, samples: list[MCQSample]) -> list[MCQVerdict]:
+        raise NotImplementedError(f"{self.name} does not support MCQ choice scoring")
+
+    def supports_task(self, task_type: str) -> bool:
+        return str(task_type) in self.task_types
 
     def close(self) -> None:
         """Release GPU memory / shutdown inference engine. Override if needed."""

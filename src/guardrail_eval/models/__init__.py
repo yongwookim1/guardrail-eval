@@ -1,2 +1,2 @@
-from . import gemma_3_it, nemotron, llama_guard  # noqa: F401  register classes on import
+from . import gemma_3_it, llama_guard, mcq, nemotron  # noqa: F401  register classes on import
 from .registry import load_model, register_model  # noqa: F401

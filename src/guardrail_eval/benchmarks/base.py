@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Iterator
 
-from ..types import Sample
+from ..types import MCQSample, Sample
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -15,6 +15,7 @@ class Benchmark(ABC):
     def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.name = config["name"]
+        self.task_type = str(config.get("task_type", "classification"))
         self.expected_label = config.get("expected_label", "unsafe")
 
     @abstractmethod
@@ -31,6 +32,19 @@ class Benchmark(ABC):
 
     def __iter__(self) -> Iterator[Sample]:
         return self.iter_samples()
+
+
+class MCQBenchmark(Benchmark):
+    def __init__(self, config: dict[str, Any]) -> None:
+        config = {**config, "task_type": "mcq"}
+        super().__init__(config)
+
+    def iter_samples(self, limit: int | None = None) -> Iterator[Sample]:
+        raise TypeError(f"{self.name} is an MCQ benchmark; use iter_mcq_samples() instead")
+
+    @abstractmethod
+    def iter_mcq_samples(self, limit: int | None = None) -> Iterator[MCQSample]:
+        """Yield MCQSample objects. Must honor `limit` (None means all)."""
 
 
 def resolve_dataset_path(config: dict[str, Any]) -> Path:

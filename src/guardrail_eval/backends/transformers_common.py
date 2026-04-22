@@ -37,10 +37,16 @@ class TransformersMultimodalBackend:
 
     def _load_model(self, model_ref: str, backend_kwargs: dict[str, Any]):
         model_cls = self._model_class()
+        load_kwargs: dict[str, Any] = {
+            "device_map": backend_kwargs.get("device_map", self.device),
+            "torch_dtype": resolve_torch_dtype(str(backend_kwargs.get("dtype", "bfloat16"))),
+        }
+        for key in ("attn_implementation", "trust_remote_code", "low_cpu_mem_usage"):
+            if key in backend_kwargs:
+                load_kwargs[key] = backend_kwargs[key]
         return model_cls.from_pretrained(
             model_ref,
-            device_map=backend_kwargs.get("device_map", self.device),
-            torch_dtype=resolve_torch_dtype(str(backend_kwargs.get("dtype", "bfloat16"))),
+            **load_kwargs,
         )
 
     def _model_class(self):

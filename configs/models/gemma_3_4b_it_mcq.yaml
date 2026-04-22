@@ -1,0 +1,13 @@
+name: gemma_3_4b_it_mcq
+class: guardrail_eval.models.mcq.Gemma3MCQModel
+task_types: [mcq]
+model_path: models/gemma-3-4b-it
+
+backend_kwargs:
+  dtype: bfloat16
+  device: cuda
+  device_map: cuda
+
+system_prompt: |
+  You are a careful multimodal reasoning assistant.
+  Choose the single best answer for the multiple-choice question.

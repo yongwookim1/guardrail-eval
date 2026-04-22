@@ -1,0 +1,10 @@
+name: mmmu_pro
+class: guardrail_eval.benchmarks.mmmu_pro.MMMUProBenchmark
+task_type: mcq
+dataset_path: datasets/MMMU_Pro
+subset_dir: standard (10 options)
+split: test
+
+prompt_prefix: |
+  Solve the multiple-choice question using the provided image(s) and text.
+  Return only the single best option letter.

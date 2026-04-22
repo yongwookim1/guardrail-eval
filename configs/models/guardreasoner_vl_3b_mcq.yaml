@@ -1,0 +1,13 @@
+name: guardreasoner_vl_3b_mcq
+class: guardrail_eval.models.mcq.GuardReasonerVL3BMCQModel
+task_types: [mcq]
+model_path: models/GuardReasoner-VL-3B
+
+backend_kwargs:
+  dtype: bfloat16
+  device: cuda
+  device_map: cuda
+
+system_prompt: |
+  You are a careful multimodal reasoning assistant.
+  Choose the single best answer for the multiple-choice question.
