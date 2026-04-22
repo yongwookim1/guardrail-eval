@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .benchmarks.registry import load_benchmark
-from .evaluator import run, run_mcq
+from .evaluator import run, run_choice
 from .io import load_yaml
 from .models.registry import load_model
 
@@ -32,8 +32,8 @@ def _names(kind: str) -> list[str]:
 def _public_model_names() -> list[str]:
     public_names: set[str] = set()
     for stem in _names("models"):
-        if stem.endswith("_mcq"):
-            public_names.add(stem[:-4])
+        if stem.endswith("_choice"):
+            public_names.add(stem[:-7])
         else:
             public_names.add(stem)
     return sorted(public_names)
@@ -45,10 +45,10 @@ def _resolve_model_config_for_task(name_or_path: str, task_type: str) -> Path:
         return p
 
     candidates: list[str]
-    if task_type == "mcq":
-        candidates = [f"{name_or_path}_mcq", name_or_path]
+    if task_type == "multiple_choice":
+        candidates = [f"{name_or_path}_choice", name_or_path]
     else:
-        candidates = [name_or_path, f"{name_or_path}_mcq"]
+        candidates = [name_or_path, f"{name_or_path}_choice"]
 
     for candidate_name in candidates:
         candidate = CONFIGS_DIR / "models" / f"{candidate_name}.yaml"
@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     continue
 
-                runner = run_mcq if benchmark.task_type == "mcq" else run
+                runner = run_choice if benchmark.task_type == "multiple_choice" else run
                 summary = runner(
                     model,
                     benchmark,
@@ -126,11 +126,11 @@ def main(argv: list[str] | None = None) -> int:
                     f"acc={_fmt_metric(summary.get('accuracy'))}",
                     f"errors={summary['errors']}",
                 ]
-                if benchmark.task_type != "mcq" and summary.get("safe_total"):
+                if benchmark.task_type != "multiple_choice" and summary.get("safe_total"):
                     parts.append(f"safe_recall={_fmt_metric(summary.get('safe_recall'))}")
-                if benchmark.task_type != "mcq" and summary.get("unsafe_total"):
+                if benchmark.task_type != "multiple_choice" and summary.get("unsafe_total"):
                     parts.append(f"unsafe_recall={_fmt_metric(summary.get('unsafe_recall'))}")
-                if benchmark.task_type != "mcq" and summary.get("safe_total") and summary.get("unsafe_total"):
+                if benchmark.task_type != "multiple_choice" and summary.get("safe_total") and summary.get("unsafe_total"):
                     parts.append(f"balanced_acc={_fmt_metric(summary.get('balanced_accuracy'))}")
                 print(" ".join(parts))
     finally:

@@ -1,6 +1,6 @@
 name: mmmu_pro
 class: guardrail_eval.benchmarks.mmmu_pro.MMMUProBenchmark
-task_type: mcq
+task_type: multiple_choice
 dataset_path: datasets/MMMU_Pro
 subset_dir: standard (10 options)
 split: test

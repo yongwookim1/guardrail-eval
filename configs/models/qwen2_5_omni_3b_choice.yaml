@@ -1,7 +1,7 @@
-name: omniguard_3b_mcq
-class: guardrail_eval.models.mcq.OmniGuard3BMCQModel
-task_types: [mcq]
-model_path: models/OmniGuard-3B
+name: qwen2_5_omni_3b_choice
+class: guardrail_eval.models.choice.Qwen25Omni3BChoiceModel
+task_types: [multiple_choice]
+model_path: models/Qwen2.5-Omni-3B
 
 backend_kwargs:
   dtype: bfloat16

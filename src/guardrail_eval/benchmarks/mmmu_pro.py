@@ -8,8 +8,8 @@ from typing import Any, Iterator
 
 from PIL import Image
 
-from ..types import CHOICE_LETTERS, MCQSample
-from .base import MCQBenchmark, resolve_dataset_path
+from ..types import CHOICE_LETTERS, ChoiceSample
+from .base import MultipleChoiceBenchmark, resolve_dataset_path
 from .registry import register_benchmark
 
 DEFAULT_PROMPT_PREFIX = (
@@ -93,7 +93,7 @@ def _find_parquet_files(dataset_root: Path, subset_dir: str, split: str) -> list
 
 
 @register_benchmark("mmmu_pro")
-class MMMUProBenchmark(MCQBenchmark):
+class MMMUProBenchmark(MultipleChoiceBenchmark):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.dataset_root = resolve_dataset_path(config)
@@ -117,7 +117,7 @@ class MMMUProBenchmark(MCQBenchmark):
         n = len(self._dataset)
         return min(n, limit) if limit is not None else n
 
-    def iter_mcq_samples(self, limit: int | None = None) -> Iterator[MCQSample]:
+    def iter_choice_samples(self, limit: int | None = None) -> Iterator[ChoiceSample]:
         self._ensure_loaded()
         assert self._dataset is not None
         for idx, row in enumerate(self._dataset):
@@ -153,7 +153,7 @@ class MMMUProBenchmark(MCQBenchmark):
                 "Answer:"
             )
 
-            yield MCQSample(
+            yield ChoiceSample(
                 id=str(row.get("id", idx)),
                 prompt=prompt,
                 choice_labels=choice_labels,

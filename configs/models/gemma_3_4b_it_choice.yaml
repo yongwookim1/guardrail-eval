@@ -1,7 +1,7 @@
-name: qwen2_5_omni_3b_mcq
-class: guardrail_eval.models.mcq.Qwen25Omni3BMCQModel
-task_types: [mcq]
-model_path: models/Qwen2.5-Omni-3B
+name: gemma_3_4b_it_choice
+class: guardrail_eval.models.choice.Gemma3ChoiceModel
+task_types: [multiple_choice]
+model_path: models/gemma-3-4b-it
 
 backend_kwargs:
   dtype: bfloat16

@@ -1,7 +1,7 @@
-name: nemotron_cs_mcq
-class: guardrail_eval.models.mcq.NemotronContentSafetyMCQModel
-task_types: [mcq]
-model_path: models/Nemotron-3-Content-Safety
+name: omniguard_3b_choice
+class: guardrail_eval.models.choice.OmniGuard3BChoiceModel
+task_types: [multiple_choice]
+model_path: models/OmniGuard-3B
 
 backend_kwargs:
   dtype: bfloat16

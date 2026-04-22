@@ -6,12 +6,12 @@ from typing import Any, Iterator
 
 from tqdm import tqdm
 
-from .benchmarks.base import Benchmark, MCQBenchmark
+from .benchmarks.base import Benchmark, MultipleChoiceBenchmark
 from .io import JsonlWriter, iter_records, load_json, write_json
 from .metrics import MetricsAccumulator, verdict_to_record
-from .metrics_mcq import MCQMetricsAccumulator, mcq_verdict_to_record
+from .metrics_choice import ChoiceMetricsAccumulator, choice_verdict_to_record
 from .models.base import GuardrailModel
-from .types import MCQSample, Sample
+from .types import ChoiceSample, Sample
 
 RAW_RESULTS_FILENAME = "results.jsonl"
 LEGACY_RAW_RESULTS_FILENAME = "results.json"
@@ -28,8 +28,8 @@ def _take_batch(it: Iterator[Sample], size: int) -> list[Sample]:
     return batch
 
 
-def _take_mcq_batch(it: Iterator[MCQSample], size: int) -> list[MCQSample]:
-    batch: list[MCQSample] = []
+def _take_choice_batch(it: Iterator[ChoiceSample], size: int) -> list[ChoiceSample]:
+    batch: list[ChoiceSample] = []
     for _ in range(size):
         try:
             batch.append(next(it))
@@ -137,9 +137,9 @@ def run(
     return summary
 
 
-def run_mcq(
+def run_choice(
     model: GuardrailModel,
-    benchmark: MCQBenchmark,
+    benchmark: MultipleChoiceBenchmark,
     output_dir: str | Path,
     *,
     limit: int | None = None,
@@ -161,7 +161,7 @@ def run_mcq(
     if skip_existing and summary_path.exists():
         return load_json(summary_path)
 
-    acc = MCQMetricsAccumulator()
+    acc = ChoiceMetricsAccumulator()
     existing_ids: set[str] = set()
     if resume:
         source_path = raw_path if raw_path.exists() else legacy_raw_path
@@ -184,7 +184,7 @@ def run_mcq(
     batch_size = max(batch_size, 1)
     flush_every_batches = max(flush_every_batches, 1)
 
-    sample_iter = benchmark.iter_mcq_samples(limit=limit)
+    sample_iter = benchmark.iter_choice_samples(limit=limit)
     if existing_ids:
         sample_iter = (sample for sample in sample_iter if sample.id not in existing_ids)
 
@@ -196,17 +196,17 @@ def run_mcq(
         sample_iter = iter(sample_iter)
         pending_flush_batches = 0
         while True:
-            batch = _take_mcq_batch(sample_iter, batch_size)
+            batch = _take_choice_batch(sample_iter, batch_size)
             if not batch:
                 break
-            verdicts = model.score_mcq_batch(batch)
+            verdicts = model.score_choice_batch(batch)
             if len(verdicts) != len(batch):
                 raise ValueError(
-                    f"{model.name} returned {len(verdicts)} MCQ verdicts for batch of size {len(batch)}"
+                    f"{model.name} returned {len(verdicts)} choice verdicts for batch of size {len(batch)}"
                 )
             batch_records: list[dict[str, Any]] = []
             for sample, verdict in zip(batch, verdicts):
-                rec = mcq_verdict_to_record(sample, verdict)
+                rec = choice_verdict_to_record(sample, verdict)
                 acc.update(rec)
                 batch_records.append(rec)
 

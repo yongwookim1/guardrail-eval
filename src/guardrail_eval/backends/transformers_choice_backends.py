@@ -5,33 +5,33 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
-from ..types import MCQSample, MCQVerdict
+from ..types import ChoiceSample, ChoiceVerdict
 from .transformers_common import TransformersMultimodalBackend
 from .transformers_gemma3_backend import _encode_image_base64
 
-DEFAULT_MCQ_SYSTEM_PROMPT = (
+DEFAULT_CHOICE_SYSTEM_PROMPT = (
     "You are a careful multimodal reasoning assistant. "
     "Choose the single best answer for the multiple-choice question."
 )
 
 
-class TransformersMCQBackend(TransformersMultimodalBackend):
-    error_name = "mcq_model"
+class TransformersChoiceBackend(TransformersMultimodalBackend):
+    error_name = "choice_model"
 
     def __init__(
         self,
         model_ref: str,
         *,
-        system_prompt: str = DEFAULT_MCQ_SYSTEM_PROMPT,
+        system_prompt: str = DEFAULT_CHOICE_SYSTEM_PROMPT,
         backend_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self.system_prompt = system_prompt.strip()
         super().__init__(model_ref=model_ref, backend_kwargs=backend_kwargs)
 
-    def _prompt_messages(self, sample: MCQSample) -> list[dict[str, Any]]:
+    def _prompt_messages(self, sample: ChoiceSample) -> list[dict[str, Any]]:
         raise NotImplementedError
 
-    def _choice_messages(self, sample: MCQSample, choice_target: str) -> list[dict[str, Any]]:
+    def _choice_messages(self, sample: ChoiceSample, choice_target: str) -> list[dict[str, Any]]:
         messages = list(self._prompt_messages(sample))
         messages.append(
             {
@@ -111,11 +111,11 @@ class TransformersMCQBackend(TransformersMultimodalBackend):
             losses.append(float(row_loss))
         return losses
 
-    def score_mcq_samples(self, samples: list[MCQSample]) -> list[MCQVerdict]:
+    def score_choice_samples(self, samples: list[ChoiceSample]) -> list[ChoiceVerdict]:
         if not samples:
             return []
 
-        verdicts: list[MCQVerdict] = []
+        verdicts: list[ChoiceVerdict] = []
         for sample in samples:
             t0 = time.perf_counter()
             prompt_messages = self._prompt_messages(sample)
@@ -134,7 +134,7 @@ class TransformersMCQBackend(TransformersMultimodalBackend):
             ]
             if not valid_losses:
                 verdicts.append(
-                    MCQVerdict(
+                    ChoiceVerdict(
                         pred_choice="error",
                         choice_losses=choice_losses,
                         raw="",
@@ -146,7 +146,7 @@ class TransformersMCQBackend(TransformersMultimodalBackend):
 
             pred_choice = min(valid_losses, key=lambda item: item[1])[0]
             verdicts.append(
-                MCQVerdict(
+                ChoiceVerdict(
                     pred_choice=pred_choice,
                     choice_losses=choice_losses,
                     raw=pred_choice,
@@ -157,15 +157,15 @@ class TransformersMCQBackend(TransformersMultimodalBackend):
         return verdicts
 
 
-class TransformersGemma3MCQBackend(TransformersMCQBackend):
-    error_name = "gemma3_mcq"
+class TransformersGemma3ChoiceBackend(TransformersChoiceBackend):
+    error_name = "gemma3_choice"
 
     def _model_class(self):
         from transformers import Gemma3ForConditionalGeneration
 
         return Gemma3ForConditionalGeneration
 
-    def _prompt_messages(self, sample: MCQSample) -> list[dict[str, Any]]:
+    def _prompt_messages(self, sample: ChoiceSample) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
         if self.system_prompt:
             messages.append(
@@ -183,15 +183,15 @@ class TransformersGemma3MCQBackend(TransformersMCQBackend):
         return messages
 
 
-class TransformersQwen25VLMCQBackend(TransformersMCQBackend):
-    error_name = "qwen2_5_vl_mcq"
+class TransformersQwen25VLChoiceBackend(TransformersChoiceBackend):
+    error_name = "qwen2_5_vl_choice"
 
     def _model_class(self):
         from transformers import Qwen2_5_VLForConditionalGeneration
 
         return Qwen2_5_VLForConditionalGeneration
 
-    def _prompt_messages(self, sample: MCQSample) -> list[dict[str, Any]]:
+    def _prompt_messages(self, sample: ChoiceSample) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
         if self.system_prompt:
             messages.append(
@@ -209,8 +209,8 @@ class TransformersQwen25VLMCQBackend(TransformersMCQBackend):
         return messages
 
 
-class TransformersQwen25OmniMCQBackend(TransformersMCQBackend):
-    error_name = "qwen2_5_omni_mcq"
+class TransformersQwen25OmniChoiceBackend(TransformersChoiceBackend):
+    error_name = "qwen2_5_omni_choice"
 
     def _model_class(self):
         from transformers import Qwen2_5OmniThinkerForConditionalGeneration
@@ -226,7 +226,7 @@ class TransformersQwen25OmniMCQBackend(TransformersMCQBackend):
         del samples
         return {"padding": True, "use_audio_in_video": False}
 
-    def _prompt_messages(self, sample: MCQSample) -> list[dict[str, Any]]:
+    def _prompt_messages(self, sample: ChoiceSample) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
         if self.system_prompt:
             messages.append(

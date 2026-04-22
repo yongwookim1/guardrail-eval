@@ -1,7 +1,7 @@
-name: qwen2_5_vl_3b_instruct_mcq
-class: guardrail_eval.models.mcq.Qwen25VL3BInstructMCQModel
-task_types: [mcq]
-model_path: models/Qwen2.5-VL-3B-Instruct
+name: guardreasoner_vl_3b_choice
+class: guardrail_eval.models.choice.GuardReasonerVL3BChoiceModel
+task_types: [multiple_choice]
+model_path: models/GuardReasoner-VL-3B
 
 backend_kwargs:
   dtype: bfloat16

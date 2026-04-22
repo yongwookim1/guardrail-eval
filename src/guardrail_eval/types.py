@@ -30,7 +30,7 @@ class Verdict:
 
 
 @dataclass
-class MCQSample:
+class ChoiceSample:
     id: str
     prompt: str
     choice_labels: list[str]
@@ -42,7 +42,7 @@ class MCQSample:
 
 
 @dataclass
-class MCQVerdict:
+class ChoiceVerdict:
     pred_choice: str
     choice_losses: dict[str, float | None]
     raw: str = ""

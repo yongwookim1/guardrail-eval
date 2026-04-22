@@ -21,7 +21,7 @@ on benchmarks:
 | `siuo` | `datasets/SIUO` | 168 | expected `unsafe` |
 | `vlsbench` | `datasets/vlsbench` | 2,241 | expected `unsafe` |
 | `holisafe` | `datasets/holisafe-bench` | 4,031 | mixed `safe` / `unsafe` from `type` |
-| `mmmu_pro` | `datasets/MMMU_Pro` | 1,730 | MCQ accuracy (`standard (10 options)`) |
+| `mmmu_pro` | `datasets/MMMU_Pro` | 1,730 | multiple-choice accuracy (`standard (10 options)`) |
 
 None of these datasets is loaded through the standard parquet-with-Image path
 in this repo. They are loaded from local dataset directories in
@@ -102,15 +102,15 @@ Notes:
 Per-run output lands at `results/<model>/<benchmark>/`:
 
 - `results.jsonl` — one JSON record per line with prediction, raw model output, latency
-- `results_summary.json` — classification runs emit safe/unsafe precision-recall-F1 plus breakdowns; MCQ runs emit accuracy, errors, and by-subject accuracy
+- `results_summary.json` — classification runs emit safe/unsafe precision-recall-F1 plus breakdowns; multiple-choice runs emit accuracy, errors, and by-subject accuracy
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
 ## Adding a new model
 
 1. Subclass `GuardrailModel` in `src/guardrail_eval/models/<name>.py`. Implement
    `classify_batch(samples) -> list[Verdict]` for safety benchmarks or
-   `score_mcq_batch(samples) -> list[MCQVerdict]` for MCQ benchmarks. Set
-   `task_types: [mcq]` in YAML for MCQ-only models. Decorate with
+   `score_choice_batch(samples) -> list[ChoiceVerdict]` for multiple-choice benchmarks. Set
+   `task_types: [multiple_choice]` in YAML for choice-only models. Decorate with
    `@register_model("<name>")`.
 2. Drop a YAML at `configs/models/<name>.yaml` pointing to the class and a local
    `model_path:`.
@@ -120,7 +120,7 @@ That's the whole contract — the evaluator, CLI, and metrics pick it up automat
 
 ## Adding a new benchmark
 
-Mirror of the model path: subclass `Benchmark`, `MCQBenchmark`, or
+Mirror of the model path: subclass `Benchmark`, `MultipleChoiceBenchmark`, or
 `LocalFileBenchmark` from `_hf_common.py`, decorate with `@register_benchmark`,
 add a YAML, import in `benchmarks/__init__.py`.
 
@@ -130,14 +130,14 @@ add a YAML, import in `benchmarks/__init__.py`.
 guardrail-eval/
 ├── configs/{models,benchmarks}/*.yaml     # one file per model / benchmark
 ├── src/guardrail_eval/
-│   ├── types.py                           # Sample / Verdict / MCQSample / MCQVerdict
+│   ├── types.py                           # Sample / Verdict / ChoiceSample / ChoiceVerdict
 │   ├── backends/vllm_backend.py           # vLLM engine wrapper (multimodal chat)
-│   ├── backends/{transformers_common,transformers_mcq_backends}.py
-│   ├── models/{base,gemma_3_it,mcq,nemotron,llama_guard,registry}.py
+│   ├── backends/{transformers_common,transformers_choice_backends}.py
+│   ├── models/{base,choice,gemma_3_it,nemotron,llama_guard,registry}.py
 │   ├── benchmarks/{base,holisafe,mmmu_pro,siuo,vlsbench,_hf_common,registry}.py
-│   ├── evaluator.py                       # classification + MCQ runners
+│   ├── evaluator.py                       # classification + multiple-choice runners
 │   ├── metrics.py                         # safety metrics
-│   ├── metrics_mcq.py                     # MCQ accuracy summaries
+│   ├── metrics_choice.py                  # multiple-choice accuracy summaries
 │   ├── io.py                              # JSONL / image-to-data-uri helpers
 │   └── cli.py                             # `guardrail-eval ...`
 └── scripts/run_eval.py

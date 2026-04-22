@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
-from .types import MCQSample, MCQVerdict
+from .types import ChoiceSample, ChoiceVerdict
 
 
 def _safe_div(num: int, den: int) -> float | None:
     return (num / den) if den else None
 
 
-class MCQMetricsAccumulator:
+class ChoiceMetricsAccumulator:
     def __init__(self) -> None:
         self.n = 0
         self.correct = 0
@@ -60,7 +60,7 @@ class MCQMetricsAccumulator:
         }
 
 
-def mcq_verdict_to_record(sample: MCQSample, verdict: MCQVerdict) -> dict[str, Any]:
+def choice_verdict_to_record(sample: ChoiceSample, verdict: ChoiceVerdict) -> dict[str, Any]:
     return {
         "sample_id": sample.id,
         "gold_choice": sample.correct_choice,

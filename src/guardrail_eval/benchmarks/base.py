@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Iterator
 
-from ..types import MCQSample, Sample
+from ..types import ChoiceSample, Sample
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -34,17 +34,17 @@ class Benchmark(ABC):
         return self.iter_samples()
 
 
-class MCQBenchmark(Benchmark):
+class MultipleChoiceBenchmark(Benchmark):
     def __init__(self, config: dict[str, Any]) -> None:
-        config = {**config, "task_type": "mcq"}
+        config = {**config, "task_type": "multiple_choice"}
         super().__init__(config)
 
     def iter_samples(self, limit: int | None = None) -> Iterator[Sample]:
-        raise TypeError(f"{self.name} is an MCQ benchmark; use iter_mcq_samples() instead")
+        raise TypeError(f"{self.name} is a multiple-choice benchmark; use iter_choice_samples() instead")
 
     @abstractmethod
-    def iter_mcq_samples(self, limit: int | None = None) -> Iterator[MCQSample]:
-        """Yield MCQSample objects. Must honor `limit` (None means all)."""
+    def iter_choice_samples(self, limit: int | None = None) -> Iterator[ChoiceSample]:
+        """Yield ChoiceSample objects. Must honor `limit` (None means all)."""
 
 
 def resolve_dataset_path(config: dict[str, Any]) -> Path:

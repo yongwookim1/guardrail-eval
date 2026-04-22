@@ -1,7 +1,7 @@
-name: gemma_3_4b_it_mcq
-class: guardrail_eval.models.mcq.Gemma3MCQModel
-task_types: [mcq]
-model_path: models/gemma-3-4b-it
+name: nemotron_cs_choice
+class: guardrail_eval.models.choice.NemotronContentSafetyChoiceModel
+task_types: [multiple_choice]
+model_path: models/Nemotron-3-Content-Safety
 
 backend_kwargs:
   dtype: bfloat16

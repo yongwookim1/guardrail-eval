@@ -5,7 +5,7 @@ class: guardrail_eval.benchmarks.siuo.SIUO
 dataset_path: datasets/SIUO
 
 # Which task file inside the repo to read. `siuo_gen.json` is open-ended
-# generation; switch to `siuo_mcqa.json` for the multiple-choice variant.
+# generation; switch to the multiple-choice JSON file for the option-selection variant.
 prompts_file: siuo_gen.json
 images_dir: images
 

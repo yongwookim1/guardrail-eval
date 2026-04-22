@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from ..types import MCQSample, MCQVerdict, Sample, Verdict
+from ..types import ChoiceSample, ChoiceVerdict, Sample, Verdict
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -27,8 +27,8 @@ class GuardrailModel(ABC):
     def classify(self, sample: Sample) -> Verdict:
         return self.classify_batch([sample])[0]
 
-    def score_mcq_batch(self, samples: list[MCQSample]) -> list[MCQVerdict]:
-        raise NotImplementedError(f"{self.name} does not support MCQ choice scoring")
+    def score_choice_batch(self, samples: list[ChoiceSample]) -> list[ChoiceVerdict]:
+        raise NotImplementedError(f"{self.name} does not support multiple-choice scoring")
 
     def supports_task(self, task_type: str) -> bool:
         return str(task_type) in self.task_types
