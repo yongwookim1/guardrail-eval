@@ -29,11 +29,7 @@ def _semantic_choice(record: dict[str, Any]) -> tuple[str | None, int | None]:
     return str(base_options[semantic_idx]), semantic_idx
 
 
-def summarize_permutation_bias(
-    records: list[dict[str, Any]],
-    *,
-    max_examples: int = 5,
-) -> dict[str, Any]:
+def _group_records_by_base_sample(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         meta = record.get("meta")
@@ -43,6 +39,73 @@ def summarize_permutation_bias(
         if base_sample_id is None:
             continue
         groups[str(base_sample_id)].append(record)
+    return groups
+
+
+def _sorted_group(group: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(group, key=lambda rec: int(rec.get("meta", {}).get("pass_index", 0)))
+
+
+def _is_complete_group(group: list[dict[str, Any]]) -> bool:
+    if not group:
+        return False
+    expected_passes_raw = group[0].get("meta", {}).get("num_passes")
+    try:
+        expected_passes = int(expected_passes_raw)
+    except (TypeError, ValueError):
+        return False
+    return len(group) == expected_passes
+
+
+def summarize_question_level_choice(records: list[dict[str, Any]]) -> dict[str, Any]:
+    groups = _group_records_by_base_sample(records)
+    if not groups:
+        return {}
+
+    total = len(groups)
+    complete = 0
+    incomplete = 0
+    correct = 0
+    invalid = 0
+
+    for group in groups.values():
+        sorted_group = _sorted_group(group)
+        if not _is_complete_group(sorted_group):
+            incomplete += 1
+            continue
+
+        complete += 1
+        has_invalid = False
+        all_correct = True
+        for record in sorted_group:
+            semantic_choice, semantic_idx = _semantic_choice(record)
+            if semantic_choice is None or semantic_idx is None or record.get("error_reason"):
+                has_invalid = True
+                all_correct = False
+                break
+            if not record.get("correct"):
+                all_correct = False
+        if has_invalid:
+            invalid += 1
+        if all_correct:
+            correct += 1
+
+    return {
+        "questions_total": total,
+        "questions_complete": complete,
+        "questions_incomplete": incomplete,
+        "questions_correct": correct,
+        "question_accuracy": (correct / complete) if complete else None,
+        "questions_invalid": invalid,
+    }
+
+
+def summarize_permutation_bias(
+    records: list[dict[str, Any]],
+    *,
+    max_examples: int = 5,
+) -> dict[str, Any]:
+    groups = _group_records_by_base_sample(records)
 
     analyzed = 0
     complete = 0
@@ -55,14 +118,8 @@ def summarize_permutation_bias(
         if len(group) < 2:
             continue
         analyzed += 1
-        sorted_group = sorted(group, key=lambda rec: int(rec.get("meta", {}).get("pass_index", 0)))
-
-        expected_passes_raw = sorted_group[0].get("meta", {}).get("num_passes")
-        try:
-            expected_passes = int(expected_passes_raw)
-        except (TypeError, ValueError):
-            expected_passes = None
-        is_complete = expected_passes is not None and len(sorted_group) == expected_passes
+        sorted_group = _sorted_group(group)
+        is_complete = _is_complete_group(sorted_group)
         if is_complete:
             complete += 1
         else:

@@ -6,6 +6,7 @@ from typing import Any, Iterator
 
 from tqdm import tqdm
 
+from .analysis import summarize_permutation_bias, summarize_question_level_choice
 from .benchmarks.base import Benchmark, MultipleChoiceBenchmark
 from .io import JsonlWriter, iter_records, load_json, write_json
 from .metrics import MetricsAccumulator, verdict_to_record
@@ -162,6 +163,7 @@ def run_choice(
         return load_json(summary_path)
 
     acc = ChoiceMetricsAccumulator()
+    all_records: list[dict[str, Any]] = []
     existing_ids: set[str] = set()
     if resume:
         source_path = raw_path if raw_path.exists() else legacy_raw_path
@@ -171,12 +173,14 @@ def run_choice(
                 with JsonlWriter(raw_path, mode="w") as writer:
                     for record in iter_records(source_path):
                         acc.update(record)
+                        all_records.append(record)
                         existing_ids.add(str(record["sample_id"]))
                         writer.write(record)
                     writer.flush()
             else:
                 for record in iter_records(source_path):
                     acc.update(record)
+                    all_records.append(record)
                     existing_ids.add(str(record["sample_id"]))
 
     total = benchmark.num_samples(limit=limit)
@@ -208,6 +212,7 @@ def run_choice(
             for sample, verdict in zip(batch, verdicts):
                 rec = choice_verdict_to_record(sample, verdict)
                 acc.update(rec)
+                all_records.append(rec)
                 batch_records.append(rec)
 
             writer.write_many(batch_records, flush=False)
@@ -219,12 +224,19 @@ def run_choice(
         if pending_flush_batches:
             writer.flush()
 
-    summary = {
+    summary: dict[str, Any] = {
         "model": model_output_name,
         "benchmark": benchmark.name,
         "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "accuracy_scope": "pass",
         **acc.summary(),
     }
+    question_level = summarize_question_level_choice(all_records)
+    if question_level:
+        summary["question_level"] = question_level
+    permutation_bias = summarize_permutation_bias(all_records)
+    if permutation_bias["questions_with_multiple_passes"]:
+        summary["permutation_bias"] = permutation_bias
     write_json(summary_path, summary)
     write_json(out / "config.json", {"model": model_config, "benchmark": benchmark_config})
     return summary

@@ -118,7 +118,7 @@ Notes:
 Per-run output lands at `results/<model>/<benchmark>/`:
 
 - `results.jsonl` — one JSON record per line with prediction, raw model output, latency
-- `results_summary.json` — classification runs emit safe/unsafe precision-recall-F1 plus breakdowns; multiple-choice runs emit accuracy, errors, and by-subject accuracy
+- `results_summary.json` — classification runs emit safe/unsafe precision-recall-F1 plus breakdowns; multiple-choice runs emit pass-level accuracy plus by-subject accuracy, and repeated-permutation benchmarks also include automatic `question_level` and `permutation_bias` analyses
 - `config.json` — frozen copy of the model + benchmark YAMLs used
 
 ## Adding a new model

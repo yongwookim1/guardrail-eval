@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from guardrail_eval.analysis.permutation_bias import summarize_permutation_bias
+from guardrail_eval.analysis.permutation_bias import summarize_permutation_bias, summarize_question_level_choice
 
 
 def _record(
@@ -96,3 +96,26 @@ def test_summarize_permutation_bias_uses_semantic_index_not_just_text() -> None:
     assert summary["questions_with_complete_passes"] == 1
     assert summary["questions_inconsistent"] == 1
     assert summary["inconsistency_rate"] == 1.0
+
+
+def test_summarize_question_level_choice_uses_complete_groups_only() -> None:
+    records = [
+        _record("q1", 1, 0, "A"),
+        _record("q1", 2, 1, "C"),
+        _record("q1", 3, 2, "B"),
+        _record("q2", 1, 0, "A"),
+        _record("q2", 2, 1, "A"),
+    ]
+    records[0]["correct"] = True
+    records[1]["correct"] = True
+    records[2]["correct"] = True
+    records[3]["correct"] = False
+    records[4]["correct"] = False
+
+    summary = summarize_question_level_choice(records)
+
+    assert summary["questions_total"] == 2
+    assert summary["questions_complete"] == 1
+    assert summary["questions_incomplete"] == 1
+    assert summary["questions_correct"] == 1
+    assert summary["question_accuracy"] == 1.0

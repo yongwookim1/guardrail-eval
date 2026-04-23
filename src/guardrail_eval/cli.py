@@ -126,6 +126,12 @@ def main(argv: list[str] | None = None) -> int:
                     f"acc={_fmt_metric(summary.get('accuracy'))}",
                     f"errors={summary['errors']}",
                 ]
+                question_level = summary.get("question_level")
+                if isinstance(question_level, dict) and question_level.get("questions_complete"):
+                    parts.append(f"q_acc={_fmt_metric(question_level.get('question_accuracy'))}")
+                permutation_bias = summary.get("permutation_bias")
+                if isinstance(permutation_bias, dict) and permutation_bias.get("questions_with_complete_passes"):
+                    parts.append(f"perm_inconsistency={_fmt_metric(permutation_bias.get('inconsistency_rate'))}")
                 if benchmark.task_type != "multiple_choice" and summary.get("safe_total"):
                     parts.append(f"safe_recall={_fmt_metric(summary.get('safe_recall'))}")
                 if benchmark.task_type != "multiple_choice" and summary.get("unsafe_total"):
