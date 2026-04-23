@@ -21,6 +21,7 @@ on benchmarks:
 | `siuo` | `datasets/SIUO` | 168 | expected `unsafe` |
 | `vlsbench` | `datasets/vlsbench` | 2,241 | expected `unsafe` |
 | `holisafe` | `datasets/holisafe-bench` | 4,031 | mixed `safe` / `unsafe` from `type` |
+| `mmbench` | `datasets/MMBench` | 4.3k (`validation`) | multiple-choice accuracy with circular option shifts |
 | `mmmu_pro` | `datasets/MMMU_Pro` | 1,730 | multiple-choice accuracy (`standard (10 options)`) |
 
 None of these datasets is loaded through the standard parquet-with-Image path
@@ -30,6 +31,7 @@ dataset-specific loaders:
 - **SIUO** — read `datasets/SIUO/siuo_gen.json` and open images from `datasets/SIUO/images/`.
 - **VLSBench** — read `datasets/vlsbench/data.json` + `datasets/vlsbench/imgs.tar`, then extract the tar once into `datasets/vlsbench/imgs/`.
 - **HoliSafe** — read `datasets/holisafe-bench/holisafe_bench.json` and open images from `datasets/holisafe-bench/images/`; expected labels are derived from the final character of HoliSafe's `type` code (`S` => `safe`, `U` => `unsafe`).
+- **MMBench** — read local parquet files from `datasets/MMBench/`, materialize images into `datasets/MMBench/.cache/mmbench_images/`, and emit one evaluation row per circular option shift.
 - **MMMU-Pro** — read local parquet files from `datasets/MMMU_Pro/standard (10 options)/` and materialize embedded images into `datasets/MMMU_Pro/.cache/mmmu_pro_images/` on first use.
 
 ## Setup
@@ -67,6 +69,8 @@ datasets/vlsbench/imgs.tar
 datasets/holisafe-bench/holisafe_bench.json
 datasets/holisafe-bench/images/...
 
+datasets/MMBench/*.parquet
+
 datasets/MMMU_Pro/standard (10 options)/test-*.parquet
 ```
 
@@ -85,8 +89,15 @@ python scripts/run_eval.py --model nemotron_cs --benchmark holisafe --batch-size
 # Pure multimodal base-model comparison with a frozen binary safety prompt
 python scripts/run_eval.py --model gemma_3_4b_it --benchmark holisafe --limit 20
 
-# MMMU-Pro direct-answer scoring over option letters
+# MMMU-Pro direct-answer scoring over option letters with circular option shifts
 python scripts/run_eval.py --model gemma_3_4b_it --benchmark mmmu_pro --limit 20
+
+# MMBench multiple-choice evaluation with circular option shifts
+python scripts/run_eval.py --model gemma_3_4b_it --benchmark mmbench --limit 20
+
+# Check whether semantic predictions stay stable across permutations
+python scripts/check_permutation_bias.py --model gemma_3_4b_it --benchmark mmmu_pro
+python scripts/check_permutation_bias.py --model gemma_3_4b_it --benchmark mmbench
 
 # Full grid (all configs under configs/models × configs/benchmarks)
 python scripts/run_eval.py --model all --benchmark all
@@ -95,7 +106,9 @@ python scripts/run_eval.py --model all --benchmark all
 Notes:
 
 - The `transformers` backend now batches chat-template preprocessing and generation across each evaluator batch.
-- The MMMU-Pro path follows the benchmark-style direct prompt and scores option letters after the full question/options context, while still batching all sample-option rows in each evaluator batch.
+- The MMBench path expands each base question into one scored sample per circular option shift, so `results.jsonl` and summary counts reflect passes rather than unique questions.
+- The MMMU-Pro path now also expands each base question into one scored sample per circular option shift, and can be checked with `scripts/check_permutation_bias.py` for semantic consistency across passes.
+- Both MMBench and MMMU-Pro still score option letters after the full question/options context, while batching all sample-option rows in each evaluator batch.
 - `backend_kwargs.use_cache` defaults to `true` for the `transformers` backend and can be disabled in model YAML if needed.
 - Set `backend_kwargs.max_choice_rows` in a model YAML if you need to cap the flattened choice batch size for memory safety on long prompts.
 - Qwen2.5-Omni choice configs disable audio output and leave the system prompt empty to avoid spurious audio/talker warnings during text-only benchmark scoring.

@@ -1,0 +1,13 @@
+name: mmbench
+class: guardrail_eval.benchmarks.mmbench.MMBenchBenchmark
+task_type: multiple_choice
+dataset_path: datasets/MMBench
+split: validation
+
+# Emit one scored sample per circular option shift so each original question is
+# evaluated multiple times. Summary metrics therefore count passes, not unique
+# base questions.
+circular_eval: true
+
+prompt_suffix: |
+  Please select the correct answer from the options above.

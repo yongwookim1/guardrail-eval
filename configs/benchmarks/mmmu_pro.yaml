@@ -5,5 +5,10 @@ dataset_path: datasets/MMMU_Pro
 subset_dir: standard (10 options)
 split: test
 
+# Emit one scored sample per circular option shift so each original question is
+# evaluated multiple times. Summary metrics therefore count passes, not unique
+# base questions.
+circular_eval: true
+
 prompt_prefix: |
   Answer with the option letter from the given choices directly.
