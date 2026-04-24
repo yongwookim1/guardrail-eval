@@ -78,6 +78,103 @@ class TransformersMultimodalBackend:
             kwargs["top_p"] = float(sampling.get("top_p", 1.0))
         return kwargs
 
+    def _messages_batch(self, samples: list[Sample]) -> list[list[dict[str, Any]]]:
+        return [self._build_messages(sample) for sample in samples]
+
+    def _sample_id_preview(self, samples: list[Sample]) -> str:
+        sample_ids = ", ".join(sample.id for sample in samples[:3])
+        if len(samples) > 3:
+            sample_ids += ", ..."
+        return sample_ids
+
+    def _apply_messages_batch(
+        self,
+        messages_batch: list[list[dict[str, Any]]],
+        *,
+        samples: list[Sample] | None = None,
+        add_generation_prompt: bool,
+        chat_template_kwargs: dict[str, Any] | None = None,
+        processor_kwargs: dict[str, Any] | None = None,
+    ):
+        template_kwargs = self._chat_template_kwargs(chat_template_kwargs)
+        apply_kwargs: dict[str, Any] = {
+            "tokenize": True,
+            "add_generation_prompt": add_generation_prompt,
+            "return_tensors": "pt",
+            "return_dict": True,
+            **template_kwargs,
+        }
+        if processor_kwargs:
+            apply_kwargs["processor_kwargs"] = processor_kwargs
+
+        try:
+            return self.processor.apply_chat_template(messages_batch, **apply_kwargs).to(self.device)
+        except Exception as exc:
+            sample_ids = self._sample_id_preview(samples or [])
+            batch_desc = f"batch of {len(messages_batch)} prompts"
+            if samples:
+                batch_desc += f" ({sample_ids})"
+            raise RuntimeError(
+                f"Failed to preprocess {self.error_name} {batch_desc}"
+            ) from exc
+
+    def prepare_inputs(
+        self,
+        samples: list[Sample],
+        *,
+        add_generation_prompt: bool,
+        chat_template_kwargs: dict[str, Any] | None = None,
+    ):
+        processor_kwargs = self._processor_kwargs(samples)
+        return self._apply_messages_batch(
+            self._messages_batch(samples),
+            samples=samples,
+            add_generation_prompt=add_generation_prompt,
+            chat_template_kwargs=chat_template_kwargs,
+            processor_kwargs=processor_kwargs,
+        )
+
+    def forward_samples_hidden_states(
+        self,
+        samples: list[Sample],
+        *,
+        add_generation_prompt: bool = False,
+        chat_template_kwargs: dict[str, Any] | None = None,
+        model_kwargs: dict[str, Any] | None = None,
+    ):
+        if not samples:
+            raise ValueError("forward_samples_hidden_states() requires at least one sample")
+
+        inputs = self.prepare_inputs(
+            samples,
+            add_generation_prompt=add_generation_prompt,
+            chat_template_kwargs=chat_template_kwargs,
+        )
+        inference_mode = getattr(self._torch, "inference_mode", None)
+        context = inference_mode() if callable(inference_mode) else nullcontext()
+        forward_kwargs: dict[str, Any] = {
+            **inputs,
+            "output_hidden_states": True,
+            "return_dict": True,
+            "use_cache": self.use_cache,
+        }
+        if model_kwargs:
+            forward_kwargs.update(model_kwargs)
+
+        try:
+            with context:
+                outputs = self.model(**forward_kwargs)
+        except Exception as exc:
+            sample_ids = self._sample_id_preview(samples)
+            raise RuntimeError(
+                f"Failed to collect {self.error_name} hidden states for batch of {len(samples)} samples ({sample_ids})"
+            ) from exc
+
+        hidden_states = getattr(outputs, "hidden_states", None)
+        if hidden_states is None:
+            raise RuntimeError(f"{self.error_name} model forward pass did not return hidden_states")
+        return inputs, hidden_states
+
     def chat_samples(
         self,
         samples: list[Sample],
@@ -89,28 +186,11 @@ class TransformersMultimodalBackend:
             return []
 
         generation_kwargs = self._generation_kwargs(sampling)
-        template_kwargs = self._chat_template_kwargs(chat_template_kwargs)
-        processor_kwargs = self._processor_kwargs(samples)
-        messages_batch = [self._build_messages(sample) for sample in samples]
-
-        try:
-            apply_kwargs: dict[str, Any] = {
-                "tokenize": True,
-                "add_generation_prompt": True,
-                "return_tensors": "pt",
-                "return_dict": True,
-                **template_kwargs,
-            }
-            if processor_kwargs:
-                apply_kwargs["processor_kwargs"] = processor_kwargs
-            inputs = self.processor.apply_chat_template(messages_batch, **apply_kwargs).to(self.device)
-        except Exception as exc:
-            sample_ids = ", ".join(sample.id for sample in samples[:3])
-            if len(samples) > 3:
-                sample_ids += ", ..."
-            raise RuntimeError(
-                f"Failed to preprocess {self.error_name} batch of {len(samples)} samples ({sample_ids})"
-            ) from exc
+        inputs = self.prepare_inputs(
+            samples,
+            add_generation_prompt=True,
+            chat_template_kwargs=chat_template_kwargs,
+        )
 
         inference_mode = getattr(self._torch, "inference_mode", None)
         context = inference_mode() if callable(inference_mode) else nullcontext()
@@ -120,9 +200,7 @@ class TransformersMultimodalBackend:
             with context:
                 generated = self.model.generate(**inputs, **generation_kwargs)
         except Exception as exc:
-            sample_ids = ", ".join(sample.id for sample in samples[:3])
-            if len(samples) > 3:
-                sample_ids += ", ..."
+            sample_ids = self._sample_id_preview(samples)
             raise RuntimeError(
                 f"Failed to generate {self.error_name} output for batch of {len(samples)} samples ({sample_ids})"
             ) from exc

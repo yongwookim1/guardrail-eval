@@ -115,6 +115,64 @@ The text dump writes `.story` files in a CNN/DM-style format:
 That makes the dumped text pool usable both for this repo's future MIR runner
 and for the official MIR script style.
 
+## MIR Run
+
+The repo now has a standalone MIR runner for the supported multimodal families:
+
+- `gemma_3_*`
+- `nemotron_*`
+- `qwen2_5_vl_*`
+- `guardreasoner_vl_*`
+- `safeqwen2_5_vl_*`
+
+Default MIR command:
+
+```bash
+python scripts/run_mir.py --model gemma_3_4b_it
+```
+
+That defaults to:
+
+- images: `datasets/mir/images/`
+- texts: `datasets/mir/texts/`
+- output: `results/mir/<model_name>/`
+- eval count: `100`
+- mode: `fast`
+
+Useful variants:
+
+```bash
+# Compare a base/guardrail pair on the same MIR pool
+python scripts/run_mir.py --model gemma_3_4b_it nemotron_cs
+python scripts/run_mir.py --model qwen2_5_vl_7b_instruct guardreasoner_vl_7b
+
+# Run the slower SciPy-backed score
+python scripts/run_mir.py --model gemma_3_4b_it --mode accurate
+
+# Shuffle the image/text pools with a fixed seed
+python scripts/run_mir.py --model gemma_3_4b_it --shuffle --seed 7
+
+# Point MIR at a custom pool
+python scripts/run_mir.py \
+  --model gemma_3_4b_it \
+  --image-data-path /data/guardrail-eval/datasets/mir/images \
+  --text-data-path /data/guardrail-eval/datasets/mir/texts
+```
+
+Each MIR run writes:
+
+- `results_summary.json` — overall MIR, token-count stats, config summary
+- `per_layer.json` — per-layer MIR values
+- `config.json` — frozen model config + runner args
+- `sample_pairs.json` — exact image/text file pairs used in the run
+- `debug_spans.jsonl` — token-span debug rows for the first few samples
+
+Implementation notes:
+
+- MIR follows the official repo structure: `image pool + text pool -> hidden states -> per-layer FID -> overall MIR`.
+- The scoring path uses the same text-centric normalization, 3-sigma outlier removal, `fast` / `accurate` FID split, and `log10(sum(per-layer MIR))` aggregation as the official MIR code.
+- The adaptation point is model preprocessing and token-span extraction for `Gemma3` and `Qwen2.5-VL`, which the official MIR repo explicitly says users should replace for their own models.
+
 Manually place the benchmark assets here before running:
 
 ```text

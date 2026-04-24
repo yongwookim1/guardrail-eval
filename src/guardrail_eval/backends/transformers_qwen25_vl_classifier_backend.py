@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any
 
 from ..types import Sample
-from .transformers_common import TransformersMultimodalBackend
+from .transformers_qwen25_vl_backend import TransformersQwen25VLBackend
 
 
-class TransformersQwen25VLClassifierBackend(TransformersMultimodalBackend):
+class TransformersQwen25VLClassifierBackend(TransformersQwen25VLBackend):
     """Qwen2.5-VL backend specialized for prompted binary safety classification."""
 
     error_name = "qwen2_5_vl"
@@ -23,11 +23,6 @@ class TransformersQwen25VLClassifierBackend(TransformersMultimodalBackend):
         self.system_prompt = system_prompt.strip()
         self.user_prompt_template = user_prompt_template.strip()
         super().__init__(model_ref=model_ref, backend_kwargs=backend_kwargs)
-
-    def _model_class(self):
-        from transformers import Qwen2_5_VLForConditionalGeneration
-
-        return Qwen2_5_VLForConditionalGeneration
 
     def _build_messages(self, sample: Sample) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []

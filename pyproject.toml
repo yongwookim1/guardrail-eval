@@ -15,11 +15,13 @@ dependencies = [
     "huggingface_hub>=0.26.0",
     "pillow>=10.0.0",
     "pyyaml>=6.0",
+    "scipy>=1.10.0",
     "tqdm>=4.66.0",
 ]
 
 [project.scripts]
 guardrail-eval = "guardrail_eval.cli:main"
+guardrail-mir = "guardrail_eval.mir_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
