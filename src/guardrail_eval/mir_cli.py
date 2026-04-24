@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .io import load_yaml
-from .mir import run_mir_evaluation, write_mir_artifacts
+from .mir import infer_mir_family, run_mir_evaluation, write_mir_artifacts
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = REPO_ROOT / "configs"
@@ -22,13 +22,17 @@ def _resolve_model_config(name_or_path: str) -> Path:
 
 
 def _public_model_names() -> list[str]:
-    names: set[str] = set()
-    for config_path in (CONFIGS_DIR / "models").glob("*.yaml"):
+    names: list[str] = []
+    for config_path in sorted((CONFIGS_DIR / "models").glob("*.yaml")):
         if config_path.stem.endswith("_choice"):
-            names.add(config_path.stem[:-7])
-        else:
-            names.add(config_path.stem)
-    return sorted(names)
+            continue
+        cfg = load_yaml(config_path)
+        try:
+            infer_mir_family(cfg)
+        except ValueError:
+            continue
+        names.append(config_path.stem)
+    return names
 
 
 def main(argv: list[str] | None = None) -> int:

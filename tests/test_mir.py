@@ -6,9 +6,11 @@ import torch
 
 from guardrail_eval.mir import (
     compute_layer_mir,
+    calculate_fid_pytorch,
     replace_outliers_with_median_l2,
     run_mir_evaluation,
 )
+from guardrail_eval.mir_cli import _public_model_names
 from guardrail_eval.mir_backends import MIRSampleLayers
 from guardrail_eval.mir_data import MIRInputPair, build_mir_input_pairs, read_story_text
 
@@ -62,6 +64,45 @@ def test_compute_layer_mir_fast_cpu_returns_non_negative() -> None:
     )
     score = compute_layer_mir(vision, text, mode="fast", metric_device="cpu")
     assert score >= 0.0
+
+
+def test_calculate_fid_pytorch_singular_case_does_not_need_scipy(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "guardrail_eval.mir.calculate_fid",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not call scipy path")),
+    )
+    tensor_a = torch.tensor(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ]
+    )
+    tensor_b = torch.tensor(
+        [
+            [1.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 1.0],
+        ]
+    )
+    score = calculate_fid_pytorch(tensor_a, tensor_b)
+    assert score >= 0.0
+
+
+def test_public_model_names_only_returns_supported_non_choice_models() -> None:
+    names = _public_model_names()
+    assert "gemma_3_4b_it" in names
+    assert "nemotron_cs" in names
+    assert "qwen2_5_vl_7b_instruct" in names
+    assert "safeqwen2_5_vl_7b" in names
+    assert "guardreasoner_vl_7b" in names
+    assert "llama_guard_4" not in names
+    assert "guardreasoner_vl_3b" not in names
+    assert "omniguard_3b" not in names
+    assert "qwen2_5_omni_3b" not in names
+    assert "qwen2_5_vl_3b_instruct" not in names
 
 
 class _FakeMIRBackend:

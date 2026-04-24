@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from scipy.linalg import sqrtm
 from tqdm import tqdm
 
 from .io import JsonlWriter, write_json
@@ -51,7 +50,32 @@ def _covariance(features: torch.Tensor, *, eps: float = 1e-6) -> torch.Tensor:
     return cov + eps * eye
 
 
+def _matrix_sqrt_trace_symmetric_psd(matrix: torch.Tensor) -> torch.Tensor:
+    eigenvalues = torch.linalg.eigvalsh(matrix)
+    clipped = torch.clamp(eigenvalues, min=0.0)
+    return torch.sqrt(clipped).sum()
+
+
+def _trace_sqrt_product_torch(cov_a: torch.Tensor, cov_b: torch.Tensor) -> torch.Tensor:
+    # For PSD covariances A and B, trace(sqrt(A B)) == trace(sqrt(A^(1/2) B A^(1/2))).
+    # The inner matrix is symmetric PSD, so an eigendecomposition is stable and keeps
+    # the "fast" mode independent of SciPy.
+    eigvals_a, eigvecs_a = torch.linalg.eigh(cov_a)
+    eigvals_a = torch.clamp(eigvals_a, min=0.0)
+    sqrt_cov_a = eigvecs_a @ torch.diag(torch.sqrt(eigvals_a)) @ eigvecs_a.T
+    sym_prod = sqrt_cov_a @ cov_b @ sqrt_cov_a
+    sym_prod = 0.5 * (sym_prod + sym_prod.T)
+    return _matrix_sqrt_trace_symmetric_psd(sym_prod)
+
+
 def calculate_fid(tensor_a: torch.Tensor, tensor_b: torch.Tensor) -> float:
+    try:
+        from scipy.linalg import sqrtm
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "accurate MIR mode requires scipy. Install it or run with --mode fast."
+        ) from exc
+
     tensor_a = tensor_a.to(dtype=torch.float32)
     tensor_b = tensor_b.to(dtype=torch.float32)
     mu_a = tensor_a.mean(dim=0)
@@ -60,7 +84,12 @@ def calculate_fid(tensor_a: torch.Tensor, tensor_b: torch.Tensor) -> float:
     cov_b = _covariance(tensor_b)
     cov_a_np = cov_a.cpu().numpy()
     cov_b_np = cov_b.cpu().numpy()
-    covmean = sqrtm(cov_a_np.dot(cov_b_np))
+    sqrt_cov_a_np = sqrtm(cov_a_np)
+    if np.iscomplexobj(sqrt_cov_a_np):
+        sqrt_cov_a_np = sqrt_cov_a_np.real
+    sym_prod = sqrt_cov_a_np.dot(cov_b_np).dot(sqrt_cov_a_np)
+    sym_prod = 0.5 * (sym_prod + sym_prod.T)
+    covmean = sqrtm(sym_prod)
     if np.iscomplexobj(covmean):
         covmean = covmean.real
     mean_diff_np = (mu_a - mu_b).cpu().numpy()
@@ -81,17 +110,9 @@ def calculate_fid_pytorch(tensor_a: torch.Tensor, tensor_b: torch.Tensor) -> flo
     mu_b = tensor_b.mean(dim=0)
     cov_a = _covariance(tensor_a)
     cov_b = _covariance(tensor_b)
-    try:
-        covmean = matrix_sqrt(cov_a @ cov_b)
-    except RuntimeError:
-        # The official MIR fast path uses a PyTorch square-root approximation.
-        # Fall back to the SciPy-backed variant only when the covariance product
-        # is numerically singular so the fast path does not abort the run.
-        return calculate_fid(tensor_a, tensor_b)
-    if torch.is_complex(covmean):
-        covmean = covmean.real
     mean_diff = mu_a - mu_b
-    fid = torch.sum(mean_diff ** 2) + torch.trace(cov_a) + torch.trace(cov_b) - 2 * torch.trace(covmean)
+    trace_covmean = _trace_sqrt_product_torch(cov_a, cov_b)
+    fid = torch.sum(mean_diff ** 2) + torch.trace(cov_a) + torch.trace(cov_b) - 2 * trace_covmean
     return float(fid.item())
 
 
@@ -160,9 +181,13 @@ def build_mir_backend(model_config: dict[str, Any]):
     backend_kwargs = dict(model_config.get("backend_kwargs", {}))
     family = infer_mir_family(model_config)
     if family == "gemma3":
-        return family, TransformersGemma3MIRBackend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+        backend = TransformersGemma3MIRBackend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+        backend.error_name = str(model_config["name"])
+        return family, backend
     if family == "qwen2_5_vl":
-        return family, TransformersQwen25VLMIRBackend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+        backend = TransformersQwen25VLMIRBackend(model_ref=model_ref, backend_kwargs=backend_kwargs)
+        backend.error_name = str(model_config["name"])
+        return family, backend
     raise ValueError(f"Unsupported MIR family: {family}")
 
 
