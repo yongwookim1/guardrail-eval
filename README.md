@@ -57,6 +57,64 @@ models/GuardReasoner-VL-3B
 The bundled model YAMLs use `model_path:` and resolve relative paths from the
 repo root, so no Hugging Face model download is needed at runtime.
 
+## MIR Data Prep
+
+For MIR runs, the repo now includes a data-prep path that:
+
+- clones `lmms-lab/textvqa` and `abisee/cnn_dailymail` locally with Git
+- pulls the required large parquet shards through Git LFS / Git Xet
+- dumps a local MIR-ready layout under `datasets/mir/`
+
+Default layout:
+
+```text
+datasets/mir/
+  images/
+  texts/
+  manifest.json
+```
+
+Default command:
+
+```bash
+bash scripts/prepare_mir_data.sh
+```
+
+That defaults to:
+
+- `TextVQA validation` -> `datasets/mir/images/`
+- `cnn_dailymail 3.0.0 validation` -> `datasets/mir/texts/*.story`
+
+Useful variants:
+
+```bash
+# small smoke dump
+bash scripts/prepare_mir_data.sh --max-images 100 --max-texts 100
+
+# dump into a server path outside the repo
+bash scripts/prepare_mir_data.sh \
+  --cache-root /data/guardrail-eval-cache/mir \
+  --output-root /data/guardrail-eval/datasets/mir
+
+# re-run only the dump step from existing local clones
+bash scripts/prepare_mir_data.sh --skip-download --overwrite
+```
+
+The text dump writes `.story` files in a CNN/DM-style format:
+
+```text
+<article body>
+
+@highlight
+<highlight line 1>
+
+@highlight
+<highlight line 2>
+```
+
+That makes the dumped text pool usable both for this repo's future MIR runner
+and for the official MIR script style.
+
 Manually place the benchmark assets here before running:
 
 ```text
