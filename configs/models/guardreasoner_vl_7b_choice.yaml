@@ -1,0 +1,11 @@
+name: guardreasoner_vl_7b_choice
+class: guardrail_eval.models.choice.GuardReasonerVL3BChoiceModel
+task_types: [multiple_choice]
+model_path: models/GuardReasoner-VL-7B
+
+backend_kwargs:
+  dtype: bfloat16
+  device: cuda
+  device_map: cuda
+
+system_prompt: ""

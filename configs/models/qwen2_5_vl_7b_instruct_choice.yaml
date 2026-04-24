@@ -1,0 +1,11 @@
+name: qwen2_5_vl_7b_instruct_choice
+class: guardrail_eval.models.choice.Qwen25VL3BInstructChoiceModel
+task_types: [multiple_choice]
+model_path: models/Qwen2.5-VL-7B-Instruct
+
+backend_kwargs:
+  dtype: bfloat16
+  device: cuda
+  device_map: cuda
+
+system_prompt: ""
