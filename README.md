@@ -173,6 +173,56 @@ Implementation notes:
 - The scoring path uses the same text-centric normalization, 3-sigma outlier removal, `fast` / `accurate` FID split, and `log10(sum(per-layer MIR))` aggregation as the official MIR code.
 - The adaptation point is model preprocessing and token-span extraction for `Gemma3` and `Qwen2.5-VL`, which the official MIR repo explicitly says users should replace for their own models.
 
+## Effective Rank Run
+
+The repo also includes a standalone effective-rank runner for the supported
+`Gemma3` and `Qwen2.5-VL` families.
+
+It is currently wired for a paper-aligned query-only setup on local
+`lmms-lab/OK-VQA` clones:
+
+- dataset root: `datasets/OK-VQA`
+- split: `val2014`
+- prompt: `image + question`
+- metric input: **last hidden layer image-token states**
+
+Default command:
+
+```bash
+python scripts/run_erank.py --model qwen2_5_vl_7b_instruct guardreasoner_vl_7b safeqwen2_5_vl_7b
+```
+
+That defaults to:
+
+- benchmark: `okvqa_erank`
+- output: `results/erank/<model_name>/<benchmark>/`
+- top-k report: `10`
+
+Useful variants:
+
+```bash
+# Gemma base vs Nemotron guardrail
+python scripts/run_erank.py --model gemma_3_4b_it nemotron_cs
+
+# Smaller smoke run
+python scripts/run_erank.py --model qwen2_5_vl_7b_instruct --limit 20
+```
+
+Each effective-rank run writes:
+
+- `results_summary.json` — shared-token stats and aggregate effective-rank summary
+- `per_position.json` — effective rank for each shared image-token position
+- `top_positions.json` — highest-ranked image-token positions
+- `samples.json` — exact samples used in the run
+- `debug_spans.jsonl` — token-span debug rows for the first few samples
+
+Implementation notes:
+
+- Effective rank is computed on the **last hidden layer** only.
+- The runner uses **image-token positions** only; it does not score model outputs.
+- The current query path uses the `OK-VQA` question text as the textual instruction, without the repo's safety-classifier or multiple-choice wrappers.
+- Image-token positions are aligned with a shared-min-prefix strategy across samples; the summary logs the observed min/mean/max image-token counts.
+
 Manually place the benchmark assets here before running:
 
 ```text

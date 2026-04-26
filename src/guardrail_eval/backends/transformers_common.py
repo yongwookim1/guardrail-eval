@@ -27,6 +27,7 @@ class TransformersMultimodalBackend:
         from transformers import AutoProcessor
 
         backend_kwargs = backend_kwargs or {}
+        self.backend_kwargs = dict(backend_kwargs)
         self.model_ref = model_ref
         self.device = str(backend_kwargs.get("device", "cuda"))
         self.use_cache = bool(backend_kwargs.get("use_cache", True))
@@ -63,7 +64,12 @@ class TransformersMultimodalBackend:
 
     def _processor_kwargs(self, samples: list[Sample]) -> dict[str, Any]:
         del samples
-        return {"padding": True}
+        kwargs = {"padding": True}
+        backend_kwargs = getattr(self, "backend_kwargs", {})
+        extra = backend_kwargs.get("processor_kwargs") if isinstance(backend_kwargs, dict) else None
+        if isinstance(extra, dict):
+            kwargs.update(extra)
+        return kwargs
 
     def _generation_kwargs(self, sampling: dict[str, Any]) -> dict[str, Any]:
         max_new_tokens = int(sampling.get("max_tokens", self.default_max_tokens))
@@ -134,21 +140,25 @@ class TransformersMultimodalBackend:
             processor_kwargs=processor_kwargs,
         )
 
-    def forward_samples_hidden_states(
+    def forward_messages_hidden_states(
         self,
-        samples: list[Sample],
+        messages_batch: list[list[dict[str, Any]]],
         *,
+        samples: list[Sample] | None = None,
         add_generation_prompt: bool = False,
         chat_template_kwargs: dict[str, Any] | None = None,
+        processor_kwargs: dict[str, Any] | None = None,
         model_kwargs: dict[str, Any] | None = None,
     ):
-        if not samples:
-            raise ValueError("forward_samples_hidden_states() requires at least one sample")
+        if not messages_batch:
+            raise ValueError("forward_messages_hidden_states() requires at least one prompt")
 
-        inputs = self.prepare_inputs(
-            samples,
+        inputs = self._apply_messages_batch(
+            messages_batch,
+            samples=samples,
             add_generation_prompt=add_generation_prompt,
             chat_template_kwargs=chat_template_kwargs,
+            processor_kwargs=processor_kwargs,
         )
         inference_mode = getattr(self._torch, "inference_mode", None)
         context = inference_mode() if callable(inference_mode) else nullcontext()
@@ -165,15 +175,37 @@ class TransformersMultimodalBackend:
             with context:
                 outputs = self.model(**forward_kwargs)
         except Exception as exc:
-            sample_ids = self._sample_id_preview(samples)
+            sample_ids = self._sample_id_preview(samples or [])
+            batch_desc = f"batch of {len(messages_batch)} prompts"
+            if samples:
+                batch_desc += f" ({sample_ids})"
             raise RuntimeError(
-                f"Failed to collect {self.error_name} hidden states for batch of {len(samples)} samples ({sample_ids})"
+                f"Failed to collect {self.error_name} hidden states for {batch_desc}"
             ) from exc
 
         hidden_states = getattr(outputs, "hidden_states", None)
         if hidden_states is None:
             raise RuntimeError(f"{self.error_name} model forward pass did not return hidden_states")
         return inputs, hidden_states
+
+    def forward_samples_hidden_states(
+        self,
+        samples: list[Sample],
+        *,
+        add_generation_prompt: bool = False,
+        chat_template_kwargs: dict[str, Any] | None = None,
+        model_kwargs: dict[str, Any] | None = None,
+    ):
+        if not samples:
+            raise ValueError("forward_samples_hidden_states() requires at least one sample")
+        return self.forward_messages_hidden_states(
+            self._messages_batch(samples),
+            samples=samples,
+            add_generation_prompt=add_generation_prompt,
+            chat_template_kwargs=chat_template_kwargs,
+            processor_kwargs=self._processor_kwargs(samples),
+            model_kwargs=model_kwargs,
+        )
 
     def chat_samples(
         self,

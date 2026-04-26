@@ -1,0 +1,8 @@
+name: okvqa_erank
+class: guardrail_eval.benchmarks.ok_vqa.OKVQAERankBenchmark
+dataset_path: datasets/OK-VQA
+split: val2014
+task_type: classification
+
+prompt_prefix: ""
+prompt_suffix: ""
